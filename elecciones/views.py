@@ -4,7 +4,13 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from collections import defaultdict
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
 
+@csrf_exempt
 def login_view(request):
     if request.method == 'POST':
         username = request.POST['username']
@@ -12,21 +18,45 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            # Hacer login
             login(request, user)
-            # Redirige según el rol
-            if user.role == 'operador':
-                return redirect('panel_operador')
-            elif user.role == 'panelista':
-                return redirect('panel_panelista')  # Cuando tengas ese panel
-            elif user.role == 'admin':
-                return redirect('admin_dashboard')  # O lo que sea el panel para admins
-            else:
-                return HttpResponseForbidden("No tenés permisos para acceder.")
+
+            # Generar el token JWT
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            # Guardar el token en sessionStorage
+            # Aquí lo puedes enviar al frontend para que lo almacenes
+            response = redirect('/panel_operador')  # Redirigir al panel
+            response.set_cookie('jwt_token', access_token)  # También se puede guardar en una cookie
+
+            return response  # Redirigir al panel del operador
+
         else:
-            return render(request, 'login.html', {'error': True})  # Aquí pasamos 'error'
+            return render(request, 'login.html', {'error': True})
+    
+    # Si la solicitud es GET, renderizar el formulario de login
+    return render(request, 'login.html')
 
-    return render(request, 'login.html', {'error': False})
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_login_view(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
 
+    user = authenticate(request, username=username, password=password)
+
+    if user is not None:
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        return Response({'access_token': access_token})
+    else:
+        return Response({'error': 'Credenciales inválidas'}, status=401)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def obtener_datos_mesa(request):
     numero_mesa = request.GET.get('numero_mesa', None)
     if not numero_mesa:
@@ -76,5 +106,3 @@ def panel_operador(request):
     }
 
     return render(request, 'panel_operador/panel_operador.html', context)
-
-
