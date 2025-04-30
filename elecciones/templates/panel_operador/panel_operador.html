@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+
+<h2>Telegrama de carga de votos</h2>
+
+<form method="POST">
+  {% csrf_token %}
+
+  <!-- DATOS DE MESA -->
+  <fieldset>
+    <legend>Datos de la mesa</legend>
+
+    <label for="mesa_input">Mesa:</label>
+    <input type="text" id="mesa_input" name="mesa" autocomplete="off" required>
+    <div id="mensaje_error_mesa" style="color: red; margin-top: 5px;"></div>
+    <button type="button" id="buscar_mesa_btn">Buscar</button> <!-- Aquí agregamos el botón de Buscar -->
+    <div id="sugerencias_mesas" style="border:1px solid #ccc; display:none; position:absolute; background:white; z-index:1000;"></div>
+
+    <label for="circuito_input">Circuito:</label>
+    <input type="text" name="circuito" id="circuito_input" readonly>
+
+    <label for="escuela_input">Escuela:</label>
+    <input type="text" name="escuela" id="escuela_input" readonly>
+
+    <div id="info_escuela"></div>
+  </fieldset>
+
+
+  <!-- TABLA SECUNDARIA-->
+  <table class="tabla_telegrama">
+    <thead>
+      <tr>
+        <th></th>
+        <th>En N°</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Cantidad de electores que han votado</td>
+        <td><input type="number" id="total_votantes" name="total_votantes" class="input_corto" required></td>
+      </tr>
+      <tr>
+        <td>Cantidad de sobres utilizados en la urna</td>
+        <td><input type="number" id="sobres_utilizados" name="sobres_utilizados" class="input_corto" required></td>
+      </tr>
+      <tr>
+        <td>Diferencia</td>
+        <td><input type="number" id="diferencia_sobres" name="diferencia_sobres" class="input_corto" readonly></td>
+      </tr>
+    </tbody>
+  </table>
+  
+
+  <!-- TABLA PRINCIPAL -->
+  <table border="1" cellpadding="5" cellspacing="0" id="tabla_votos">
+    
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>Agrupación Política</th>
+        {% for cargo in cargos %}
+        <th data-cargo="{{ cargo.id }}">{{ cargo.nombre_postulacion }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for grupo in partidos_map %}
+      <tr>
+        <td>{{ grupo.partido.numero_lista }}</td>
+        <td>{{ grupo.partido.nombre_partido }}</td>
+        {% for cargo in cargos %}
+        {% with candidatura=grupo.candidaturas|dict_key:cargo.id %}
+        {% if candidatura %}
+        <td>
+          <input type="number" name="votos_{{ candidatura.id }}" min="0" class="voto_input" data-cargo="{{ cargo.id }}" oninput="calcularTotales()">
+        </td>
+        {% else %}
+        <td style="background: #eee;">(no postula)</td>
+        {% endif %}
+        {% endwith %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+
+    <tfoot>
+      <tr>
+        <td></td>
+        <td><strong>Total votos agurpaciones políticas</strong></td>
+        {% for cargo in cargos %}
+        <td>
+          <input type="number" id="total_{{ cargo.id }}" readonly>
+        </td>
+        {% endfor %}
+      </tr>
+      {% for tipo in tipos_voto_especial %}
+      <tr>
+        <td></td>
+        <td><strong>Votos {{ tipo|title }}</strong></td>
+        {% for cargo in cargos %}
+        <td><input type="number" name="votos_{{ tipo }}_{{ cargo.id }}" class="voto_input_adicional" oninput="calcularTotales()"></td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      
+      <tr>
+        <td></td>
+        <td><strong>Votos en blanco</strong></td>
+        {% for cargo in cargos %}
+        <td><input type="number" name="votos_blanco_{{ cargo.id }}" class="voto_input_adicional" oninput="calcularTotales()"></td>
+        {% endfor %}
+      </tr>
+      
+      <tr>
+        <td></td>
+        <td><strong>Total por columnas</strong></td>
+        {% for cargo in cargos %}
+        <td>
+          <input type="number" id="total_agrupaciones_{{ cargo.id }}" readonly>
+        </td>
+        {% endfor %}
+      </tr>
+    </tfoot>
+  </table>
+  <div id="mensaje_validacion"></div>
+
+
+  <button type="submit">Guardar votos</button>
+</form>
+
+{% endblock %}
