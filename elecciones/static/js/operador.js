@@ -20,7 +20,6 @@ function loginUsuario(username, password) {
     });
 }
 
-// Función para obtener el token de las cookies
 function getCookie(name) {
   let cookieArr = document.cookie.split(";");
   for (let i = 0; i < cookieArr.length; i++) {
@@ -29,92 +28,71 @@ function getCookie(name) {
       return cookie.substring(name.length + 1);
     }
   }
-  return null; // Retorna null si no se encuentra la cookie
+  return null;
 }
 
 document.addEventListener("DOMContentLoaded", function () {
   const inputMesa = document.getElementById("mesa_input");
   const inputCircuito = document.getElementById("circuito_input");
   const inputEscuela = document.getElementById("escuela_input");
-  const mensajeError = document.getElementById("mensaje_error_mesa");  // Este es el mensaje que mostrarás al usuario si hay error o problema
-  const buscarMesaBtn = document.getElementById("buscar_mesa_btn"); // El botón para buscar mesa
+  const mensajeError = document.getElementById("mensaje_error_mesa");
+  const buscarMesaBtn = document.getElementById("buscar_mesa_btn");
 
-  // Función que maneja la búsqueda de datos de mesa
   function buscarMesa() {
     const numeroMesa = inputMesa.value;
-  
+
     if (numeroMesa.length < 1) {
       inputEscuela.value = "";
       inputCircuito.value = "";
       mensajeError.textContent = "";
       return;
     }
-  
-    if (isNaN(numeroMesa) || numeroMesa.length < 3) {
-      mensajeError.textContent = "⚠️ El número de mesa debe tener al menos 3 dígitos.";
+
+    if (isNaN(numeroMesa)) {
+      mensajeError.textContent = "⚠️ El número de mesa debe ser numérico.";
       return;
     }
-  
+
     mensajeError.textContent = "Buscando mesa...";
-  
-    // Obtener el token JWT de las cookies
-    const token = getCookie("jwt_token");
-  
-    if (!token) {
-      inputEscuela.value = "Token no encontrado";
-      inputCircuito.value = "";
-      mensajeError.textContent = "⚠️ No estás autenticado. Por favor, inicia sesión.";
-      return;
-    }
-  
-    // Realizar la búsqueda de datos de la mesa
-    fetch(`/api/obtener_datos_mesa/?numero_mesa=${numeroMesa}`, {
-      method: 'GET',
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
-    })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.error) {
-        inputEscuela.value = "Mesa no encontrada";
+
+    fetch(`/api/obtener_datos_mesa/?numero_mesa=${numeroMesa}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("Datos de la mesa recibidos:", data);
+        if (data.error || !data.escuela || !data.circuito) {
+          inputEscuela.value = "Mesa no encontrada";
+          inputCircuito.value = "";
+          mensajeError.textContent = "⚠️ Mesa no encontrada. Verifica el número de mesa.";
+          document.getElementById("mesa_id").value = "";  // limpia si no se encuentra
+        } else {
+          inputEscuela.value = data.escuela;
+          inputCircuito.value = data.circuito;
+          document.getElementById("mesa_id").value = numeroMesa;
+          mensajeError.textContent = "";
+        }
+      })
+      .catch((err) => {
+        console.error("Error al obtener los datos de la mesa:", err);
+        inputEscuela.value = "Error al obtener datos";
         inputCircuito.value = "";
-        mensajeError.textContent = "⚠️ Mesa no encontrada. Verifica el número de mesa.";
-      } else {
-        inputEscuela.value = data.escuela;
-        inputCircuito.value = data.circuito;
-        mensajeError.textContent = "";
-      }
-    })
-    .catch((err) => {
-      console.error("Error al obtener los datos de la mesa:", err);
-      inputEscuela.value = "Error al obtener datos";
-      inputCircuito.value = "";
-      mensajeError.textContent = "⚠️ Hubo un error al obtener los datos de la mesa. Intenta nuevamente.";
-    });
+        mensajeError.textContent = "⚠️ Hubo un error al obtener los datos de la mesa. Intenta nuevamente.";
+      });
   }
-  
-  // Asociar la función de búsqueda al evento del botón "Buscar"
+
   buscarMesaBtn.addEventListener("click", buscarMesa);
 
-  // También puedes seguir manejando la entrada de texto en el campo de mesa si lo deseas
-  inputMesa.addEventListener("input", function () {
-    // Limpiar mensaje de error y campos cuando el usuario está escribiendo
-    inputEscuela.value = "";
-    inputCircuito.value = "";
-    mensajeError.textContent = "";
-  });
-
-  // Evento para recalcular totales en cada cambio de input
   document.querySelectorAll("input").forEach((input) => {
     input.addEventListener("input", calcularTotales);
   });
 
-  // Ejecutar el cálculo de totales al cargar la página por primera vez
+  const enviarVotosBtn = document.getElementById("enviar_votos_btn");
+  if (enviarVotosBtn) {
+    enviarVotosBtn.addEventListener("click", enviarVotos);
+  }
+
   calcularTotales();
 });
 
-// Función para calcular los totales de votos
 function calcularTotales() {
   const columnas = [...document.querySelectorAll('th[data-cargo]')];
   const totalesAgrupaciones = {};
@@ -159,13 +137,18 @@ function calcularTotales() {
     }
   }
 
-  // Calcular diferencia entre votantes y sobres
-  const sobres = parseInt(document.getElementById('sobres_utilizados')?.value) || 0;
-  const diferencia = totalVotantes - sobres;
-  document.getElementById('diferencia_sobres').value = diferencia;
+  const diferenciaCampo = document.getElementById('diferencia_sobres');
+  const diferencia = parseInt(diferenciaCampo?.value) || 0;
+
+  // Validar manualmente si la diferencia es distinta de cero
+  if (diferencia !== 0) {
+    diferenciaCampo.classList.add('input-error');
+    mensaje += `⚠️ La diferencia ingresada entre votantes y sobres no es cero. Diferencia: ${diferencia}.\n`;
+  } else {
+    diferenciaCampo.classList.remove('input-error');
+  }
 
   // Remarcar la diferencia en rojo si no es igual a 0
-  const diferenciaCampo = document.getElementById('diferencia_sobres');
   if (diferencia !== 0) {
     diferenciaCampo.classList.add('input-error');
     mensaje += `⚠️ La diferencia entre votantes y sobres no es cero. Diferencia: ${diferencia}.\n`;
@@ -182,4 +165,82 @@ function calcularTotales() {
     mensajeDiv.textContent = "";
     mensajeDiv.style.display = "none";
   }
+}
+
+function enviarVotos() {
+  const mesaId = document.getElementById("mesa_id");
+
+  if (!mesaId || !mesaId.value) {
+    alert("Mesa no seleccionada");
+    return;
+  }
+
+  // Validación del checkbox de confirmación
+  const checkboxEscrutada = document.getElementById("escrutada");
+  if (!checkboxEscrutada || !checkboxEscrutada.checked) {
+    alert("Debés confirmar que la mesa está escrutada marcando la casilla.");
+    return;
+  }
+
+  const votosCargo = [];
+  const votosEspeciales = [];
+
+  document.querySelectorAll(".voto_input").forEach(input => {
+    const partidoId = input.dataset.partido;
+    const cargoId = input.dataset.cargo;
+    const cantidad = parseInt(input.value) || 0;
+
+    votosCargo.push({
+      partido_postulacion_id: partidoId,
+      cargo_id: cargoId,
+      votos: cantidad,
+    });
+  });
+
+  document.querySelectorAll(".voto_especial_input").forEach(input => {
+    const tipoVoto = input.dataset.tipo;
+    const cantidad = parseInt(input.value) || 0;
+
+    votosEspeciales.push({
+      tipo: tipoVoto,
+      votos: cantidad,
+    });
+  });
+  console.log("Votos especiales enviados:", votosEspeciales);
+
+
+  const resumenMesa = {
+    electores_votaron: parseInt(document.getElementById("electores_votaron").value) || 0,
+    sobres_encontrados: parseInt(document.getElementById("sobres_encontrados").value) || 0,
+    diferencia: parseInt(document.getElementById("diferencia_sobres").value) || 0,
+    escrutada: checkboxEscrutada.checked,
+  };
+
+  const payload = {
+    mesa_id: mesaId.value,
+    votos_cargo: votosCargo,
+    votos_especiales: votosEspeciales,
+    resumen_mesa: resumenMesa,
+  };
+
+  fetch("/operador/guardar-votos/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie('csrftoken'),
+    },
+    body: JSON.stringify(payload),
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "ok") {
+        alert("✅ Votos guardados correctamente");
+      } else {
+        alert("❌ Error al guardar votos: " + data.message);
+      }
+    })
+    .catch(err => {
+      console.error("Error al enviar votos:", err);
+      alert("❌ Error de red o servidor");
+    });
 }

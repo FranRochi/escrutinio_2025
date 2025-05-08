@@ -16,7 +16,6 @@
     <input type="text" id="mesa_input" name="mesa" autocomplete="off" required>
     <div id="mensaje_error_mesa" style="color: red; margin-top: 5px;"></div>
     <button type="button" id="buscar_mesa_btn">Buscar</button> <!-- Aquí agregamos el botón de Buscar -->
-    <div id="sugerencias_mesas" style="border:1px solid #ccc; display:none; position:absolute; background:white; z-index:1000;"></div>
 
     <label for="circuito_input">Circuito:</label>
     <input type="text" name="circuito" id="circuito_input" readonly>
@@ -25,6 +24,8 @@
     <input type="text" name="escuela" id="escuela_input" readonly>
 
     <div id="info_escuela"></div>
+    <input type="hidden" id="mesa_id" name="mesa_id">
+
   </fieldset>
 
 
@@ -39,16 +40,22 @@
     <tbody>
       <tr>
         <td>Cantidad de electores que han votado</td>
-        <td><input type="number" id="total_votantes" name="total_votantes" class="input_corto" required></td>
+        <td><input type="number" id="electores_votaron" name="total_votantes" class="input_corto" required></td>
       </tr>
       <tr>
         <td>Cantidad de sobres utilizados en la urna</td>
-        <td><input type="number" id="sobres_utilizados" name="sobres_utilizados" class="input_corto" required></td>
+        <td><input type="number" id="sobres_encontrados" name="sobres_utilizados" class="input_corto" required></td>
       </tr>
       <tr>
         <td>Diferencia</td>
-        <td><input type="number" id="diferencia_sobres" name="diferencia_sobres" class="input_corto" readonly></td>
+        <td><input type="number" id="diferencia_sobres" name="diferencia_sobres" class="input_corto" required></td>
       </tr>
+
+      <tr>
+        <td>¿Mesa escrutada?</td>
+        <td><input type="checkbox" id="escrutada" name="escrutada"></td>
+      </tr>
+
     </tbody>
   </table>
   
@@ -74,7 +81,7 @@
         {% with candidatura=grupo.candidaturas|dict_key:cargo.id %}
         {% if candidatura %}
         <td>
-          <input type="number" name="votos_{{ candidatura.id }}" min="0" class="voto_input" data-cargo="{{ cargo.id }}" oninput="calcularTotales()">
+          <input type="number" name="votos_{{ candidatura.id }}" min="0" class="voto_input" data-cargo="{{ cargo.id }}" data-partido="{{ candidatura.id }}" oninput="calcularTotales()">
         </td>
         {% else %}
         <td style="background: #eee;">(no postula)</td>
@@ -100,18 +107,10 @@
         <td></td>
         <td><strong>Votos {{ tipo|title }}</strong></td>
         {% for cargo in cargos %}
-        <td><input type="number" name="votos_{{ tipo }}_{{ cargo.id }}" class="voto_input_adicional" oninput="calcularTotales()"></td>
+        <td><input type="number" name="votos_{{ tipo }}_{{ cargo.id }}" class="voto_especial_input" data-tipo="{{ tipo }}" oninput="calcularTotales()"></td>
         {% endfor %}
       </tr>
       {% endfor %}
-      
-      <tr>
-        <td></td>
-        <td><strong>Votos en blanco</strong></td>
-        {% for cargo in cargos %}
-        <td><input type="number" name="votos_blanco_{{ cargo.id }}" class="voto_input_adicional" oninput="calcularTotales()"></td>
-        {% endfor %}
-      </tr>
       
       <tr>
         <td></td>
@@ -126,8 +125,15 @@
   </table>
   <div id="mensaje_validacion"></div>
 
+  <div style="margin-top: 10px;">
+    <label>
+      <input type="checkbox" id="escrutada">
+      Confirmo que la mesa fue escrutada correctamente
+    </label>
+  </div>
+  
 
-  <button type="submit">Guardar votos</button>
+  <button type="button" id="enviar_votos_btn">Enviar votos</button>
 </form>
 
 {% endblock %}

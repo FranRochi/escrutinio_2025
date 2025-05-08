@@ -18,7 +18,6 @@ ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'elecciones.User'
 
-
 # Application definition
 
 INSTALLED_APPS = [

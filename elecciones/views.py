@@ -1,7 +1,7 @@
-from django.shortcuts import render, redirect
-from .models import Mesa, Partido, CargoPostulacion, PartidoPostulacion
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Mesa, Partido, CargoPostulacion, PartidoPostulacion, VotoMesaCargo, VotoMesaEspecial, ResumenMesa
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponseForbidden, JsonResponse
 from collections import defaultdict
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -9,6 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
+import json
 
 @csrf_exempt
 def login_view(request):
@@ -54,7 +55,6 @@ def api_login_view(request):
     else:
         return Response({'error': 'Credenciales inválidas'}, status=401)
 
-
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def obtener_datos_mesa(request):
@@ -64,13 +64,21 @@ def obtener_datos_mesa(request):
 
     try:
         mesa = Mesa.objects.get(numero_mesa=numero_mesa)
+        
+        # Verificación si la mesa ya fue escrutada
+        if mesa.escrutada:
+            return JsonResponse({'error': 'Esta mesa ya fue escrutada'}, status=400)
+
+        # Si no ha sido escrutada, devolver la información de escuela y circuito
         escuela = mesa.escuela.nombre_escuela
         circuito = mesa.circuito.numero_circuito
         data = {
+            'id': mesa.id,
             'escuela': escuela,
             'circuito': circuito
         }
         return JsonResponse(data)
+    
     except Mesa.DoesNotExist:
         return JsonResponse({'error': 'Mesa no encontrada'}, status=404)
 
@@ -106,3 +114,59 @@ def panel_operador(request):
     }
 
     return render(request, 'panel_operador/panel_operador.html', context)
+
+def es_operador(user):
+    return user.groups.filter(name="operarios").exists()
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def guardar_votos(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            numero_mesa = data.get('mesa_id')
+            votos_cargo = data.get('votos_cargo')
+            votos_especiales = data.get('votos_especiales')
+            resumen_mesa = data.get('resumen_mesa')
+
+            mesa = Mesa.objects.get(numero_mesa=numero_mesa)
+
+            for voto in votos_cargo:
+                partido_postulacion_id = voto['partido_postulacion_id']
+                votos = voto['votos']
+                partido_postulacion = PartidoPostulacion.objects.get(id=partido_postulacion_id)
+                VotoMesaCargo.objects.create(
+                    mesa=mesa,
+                    partido_postulacion=partido_postulacion,
+                    votos=votos
+                )
+
+            for voto in votos_especiales:
+                    try:
+                        tipo = voto['tipo']
+                        votos = voto['votos']
+                        print(f"Registrando voto especial: tipo={tipo}, votos={votos}")  # DEBUG
+                        VotoMesaEspecial.objects.update_or_create(
+                            mesa=mesa,
+                            tipo=tipo,
+                            defaults={'votos': votos}
+                        )
+                    except Exception as e:
+                        print(f"Error en voto especial: {e}")  # DEBUG
+                        return JsonResponse({'status': 'error', 'message': f'Error al guardar voto especial: {str(e)}'})
+
+
+            ResumenMesa.objects.create(
+                mesa=mesa,
+                electores_votaron=resumen_mesa['electores_votaron'],
+                sobres_encontrados=resumen_mesa['sobres_encontrados'],
+                diferencia=resumen_mesa['diferencia'],
+                escrutada=resumen_mesa['escrutada']
+            )
+
+            return JsonResponse({'status': 'ok'})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+

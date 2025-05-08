@@ -21,6 +21,7 @@ class Mesa(models.Model):
     numero_mesa = models.IntegerField(unique=True)
     escuela = models.ForeignKey(Escuela, on_delete=models.CASCADE, related_name="mesas")
     circuito = models.ForeignKey(Circuito, on_delete=models.CASCADE, related_name="mesas_directas")  # nuevo campo
+    escrutada = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Mesa {self.numero_mesa}"
@@ -64,6 +65,49 @@ class PartidoPostulacion(models.Model):
         return f"{self.partido.nombre_partido} se postula a {self.cargo_postulacion.nombre_postulacion}"
 
 
+#GUARDAR VOTOS
+
+class VotoMesaCargo(models.Model):
+    mesa = models.ForeignKey(Mesa, on_delete=models.CASCADE, related_name="votos_cargo")
+    partido_postulacion = models.ForeignKey(PartidoPostulacion, on_delete=models.CASCADE, related_name="votos")
+    votos = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = ('mesa', 'partido_postulacion')  # Evita duplicados
+
+    def __str__(self):
+        return f"{self.votos} votos a {self.partido_postulacion} en Mesa {self.mesa.numero_mesa}"
+
+class VotoMesaEspecial(models.Model):
+    TIPO_VOTO = [
+        ('blanco', 'En blanco'),
+        ('nulo', 'Nulo'),
+        ('recurrido', 'Recurrido'),
+        ('impugnado', 'Impugnado'),
+        ('comando', 'Comando'),
+    ]
+    mesa = models.ForeignKey(Mesa, on_delete=models.CASCADE, related_name="votos_especiales")
+    tipo = models.CharField(max_length=20, choices=TIPO_VOTO)
+    votos = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = ('mesa', 'tipo')
+
+    def __str__(self):
+        return f"{self.votos} votos {self.tipo} en Mesa {self.mesa.numero_mesa}"
+
+
+class ResumenMesa(models.Model):
+    mesa = models.OneToOneField(Mesa, on_delete=models.CASCADE, related_name="resumen")
+    electores_votaron = models.PositiveIntegerField()
+    sobres_encontrados = models.PositiveIntegerField()
+    diferencia = models.IntegerField()
+    escrutada = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Resumen de {self.mesa}"
+
+
 #USUARIOS
 
 class User(AbstractUser):
@@ -77,3 +121,4 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} - {self.get_role_display()}"
+    
