@@ -1,0 +1,50 @@
+<!-- templates/panelistas/resultados.html -->
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+
+{% block content %}
+  <h2>Resultados del Escrutinio</h2>
+
+  <div class="panel-resumen" style="margin-bottom: 2rem;">
+    <h2>Resumen General</h2>
+    <p><strong>Mesas escrutadas:</strong> {{ porcentaje_escrutadas }}%</p>
+  
+    <canvas id="graficoVotos" width="800" height="400"></canvas>
+  </div>
+  
+  <canvas id="graficoVotos" width="800" height="400"></canvas>
+
+
+  <div>
+    <h3>Resumen por Cargo</h3>
+  
+    {% for cargo, partidos in votos_por_partido_y_cargo.items %}
+      <div class="titulo-cargo">{{ cargo }}</div>
+      <table class="tabla-resumen">
+        <thead>
+          <tr>
+            <th>Partido</th>
+            <th>Total de votos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for partido, total in partidos.items %}
+            <tr>
+              <td>{{ partido }}</td>
+              <td>{{ total }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top: 2rem;">
+    <h3>Gráficos por Cargo</h3>
+    <div id="graficos-por-cargo"></div>
+  </div>
+  
+  
+
+{% endblock %}

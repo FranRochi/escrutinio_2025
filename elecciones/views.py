@@ -19,24 +19,27 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            # Hacer login
             login(request, user)
 
-            # Generar el token JWT
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
-            # Guardar el token en sessionStorage
-            # Aquí lo puedes enviar al frontend para que lo almacenes
-            response = redirect('/panel_operador')  # Redirigir al panel
-            response.set_cookie('jwt_token', access_token)  # También se puede guardar en una cookie
+            # Redirigir según el rol del usuario
+            if user.role == 'operador':
+                response = redirect('/panel_operador')
+            elif user.role == 'panelista':
+                response = redirect('/panel-panelista/')
+            elif user.role == 'admin':
+                response = redirect('/admin/')  # o lo que tengas para admin
+            else:
+                return render(request, 'login.html', {'error': True, 'mensaje': 'Rol desconocido'})
 
-            return response  # Redirigir al panel del operador
+            response.set_cookie('jwt_token', access_token)
+            return response
 
         else:
             return render(request, 'login.html', {'error': True})
     
-    # Si la solicitud es GET, renderizar el formulario de login
     return render(request, 'login.html')
 
 @csrf_exempt
@@ -169,4 +172,54 @@ def guardar_votos(request):
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
+
+
+def resultados_panelista(request):
+    mesas = Mesa.objects.all()
+    mesas_con_votos = Mesa.objects.filter(votos_cargo__isnull=False).distinct().count()
+    total_mesas = mesas.count()
+
+    grafico_datos = defaultdict(lambda: defaultdict(int))
+
+    porcentaje_escrutadas = round((mesas_con_votos / total_mesas) * 100, 2) if total_mesas else 0
+
+    votos_por_partido_y_cargo = defaultdict(lambda: defaultdict(int))
+
+    for voto in VotoMesaCargo.objects.select_related('partido_postulacion__partido', 'partido_postulacion__cargo_postulacion'):
+        cargo = voto.partido_postulacion.cargo_postulacion.nombre_postulacion
+        partido = voto.partido_postulacion.partido.nombre_partido
+        votos_por_partido_y_cargo[cargo][partido] += voto.votos
+
+    # Convertimos defaultdict a dict normal para pasar al template
+    grafico_datos = {partido: dict(cargos) for partido, cargos in grafico_datos.items()}
+
+    votos_por_partido_y_cargo = {cargo: dict(partidos) for cargo, partidos in votos_por_partido_y_cargo.items()}
+
+    partidos_postulados = PartidoPostulacion.objects.all()
+
+    resultados = []
+    for mesa in mesas:
+        mesa_resultado = {
+            'mesa': mesa,
+            'resultados_cargos': {},
+            'resultados_especiales': {}
+        }
+
+        for partido_postulacion in partidos_postulados:
+            votos = VotoMesaCargo.objects.filter(mesa=mesa, partido_postulacion=partido_postulacion)
+            mesa_resultado['resultados_cargos'][partido_postulacion.partido.nombre_partido] = sum(voto.votos for voto in votos)
+
+        for tipo_voto in VotoMesaEspecial.TIPO_VOTO:
+            votos_especiales = VotoMesaEspecial.objects.filter(mesa=mesa, tipo=tipo_voto[0])
+            mesa_resultado['resultados_especiales'][tipo_voto[1]] = sum(voto.votos for voto in votos_especiales)
+
+        resultados.append(mesa_resultado)
+
+    return render(request, 'panel_panelista/panel_panelista.html', {
+        'resultados': resultados,
+        'mesas': mesas,
+        'partidos_postulados': partidos_postulados,
+        'porcentaje_escrutadas': porcentaje_escrutadas,
+        'votos_por_partido_y_cargo': votos_por_partido_y_cargo
+    })
 

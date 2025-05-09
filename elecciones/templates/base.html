@@ -17,6 +17,15 @@
     {% block content %}{% endblock %}
   </main>
 
+  <script>
+    const votosData = {{ votos_por_partido_y_cargo|safe }};
+  </script>
+
   <script src="{% static 'js/operador.js' %}"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script src="{% static 'js/panelista.js' %}"></script>
+
 </body>
 </html>

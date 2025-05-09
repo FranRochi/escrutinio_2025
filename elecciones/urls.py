@@ -24,4 +24,7 @@ urlpatterns = [
     path("guardar-votos/", views.guardar_votos, name="guardar_votos"),
     path("operador/guardar-votos/", views.guardar_votos, name="guardar_votos"),
 
+    # Vistas panelistas
+    path('panel-panelista/', views.resultados_panelista, name='panel_panelista'),
+
 ]

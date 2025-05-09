@@ -168,3 +168,31 @@ body {
     100% { transform: translateX(0); }
   }
   
+  .tabla-resumen {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+  }
+  
+  .tabla-resumen th, .tabla-resumen td {
+    border: 1px solid #17b3c6;
+    padding: 8px;
+    text-align: center;
+  }
+  
+  .tabla-resumen th {
+    background-color: #17b3c6;
+    font-weight: bold;
+  }
+  
+  .tabla-resumen tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .titulo-cargo {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 1rem 0;
+    color: #333;
+  }
+  
