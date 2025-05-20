@@ -86,6 +86,17 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   const enviarVotosBtn = document.getElementById("enviar_votos_btn");
+  const checkboxEscrutada = document.getElementById("escrutada");
+
+  // 🔒 Deshabilitar botón hasta marcar checkbox
+  if (checkboxEscrutada && enviarVotosBtn) {
+    enviarVotosBtn.disabled = !checkboxEscrutada.checked;
+
+    checkboxEscrutada.addEventListener("change", () => {
+      enviarVotosBtn.disabled = !checkboxEscrutada.checked;
+    });
+  }
+
   if (enviarVotosBtn) {
     enviarVotosBtn.addEventListener("click", enviarVotos);
   }
@@ -235,6 +246,7 @@ function enviarVotos() {
     .then(data => {
       if (data.status === "ok") {
         alert("✅ Votos guardados correctamente");
+        window.location.reload();
       } else {
         alert("❌ Error al guardar votos: " + data.message);
       }

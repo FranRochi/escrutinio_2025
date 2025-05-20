@@ -122,6 +122,14 @@ def panel_operador(request):
 def es_operador(user):
     return user.groups.filter(name="operarios").exists()
 
+def verificar_mesa_escrutada(request):
+    mesa_id = request.GET.get('mesa_id')
+    try:
+        mesa = Mesa.objects.get(id=mesa_id)
+        return JsonResponse({'escrutada': mesa.escrutada, 'numero': mesa.numero})
+    except Mesa.DoesNotExist:
+        return JsonResponse({'error': 'Mesa no encontrada'}, status=404)
+
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -136,6 +144,14 @@ def guardar_votos(request):
 
             mesa = Mesa.objects.get(numero_mesa=numero_mesa)
 
+            # Validar si ya fue escrutada
+            if mesa.escrutada:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'La mesa {numero_mesa} ya fue escrutada.'
+                })
+
+            # Guardar votos por cargo
             for voto in votos_cargo:
                 partido_postulacion_id = voto['partido_postulacion_id']
                 votos = voto['votos']
@@ -146,21 +162,22 @@ def guardar_votos(request):
                     votos=votos
                 )
 
+            # Guardar votos especiales
             for voto in votos_especiales:
-                    try:
-                        tipo = voto['tipo']
-                        votos = voto['votos']
-                        print(f"Registrando voto especial: tipo={tipo}, votos={votos}")  # DEBUG
-                        VotoMesaEspecial.objects.update_or_create(
-                            mesa=mesa,
-                            tipo=tipo,
-                            defaults={'votos': votos}
-                        )
-                    except Exception as e:
-                        print(f"Error en voto especial: {e}")  # DEBUG
-                        return JsonResponse({'status': 'error', 'message': f'Error al guardar voto especial: {str(e)}'})
+                try:
+                    tipo = voto['tipo']
+                    votos = voto['votos']
+                    print(f"Registrando voto especial: tipo={tipo}, votos={votos}")
+                    VotoMesaEspecial.objects.update_or_create(
+                        mesa=mesa,
+                        tipo=tipo,
+                        defaults={'votos': votos}
+                    )
+                except Exception as e:
+                    print(f"Error en voto especial: {e}")
+                    return JsonResponse({'status': 'error', 'message': f'Error al guardar voto especial: {str(e)}'})
 
-
+            # Guardar resumen
             ResumenMesa.objects.create(
                 mesa=mesa,
                 electores_votaron=resumen_mesa['electores_votaron'],
@@ -169,10 +186,15 @@ def guardar_votos(request):
                 escrutada=resumen_mesa['escrutada']
             )
 
+            # ✅ Marcar la mesa como escrutada
+            mesa.escrutada = resumen_mesa.get("escrutada", False)
+            mesa.save()
+
             return JsonResponse({'status': 'ok'})
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
+
 
 
 def resultados_panelista(request):
