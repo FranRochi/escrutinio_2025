@@ -167,6 +167,15 @@ body {
     75% { transform: translateX(-3px); }
     100% { transform: translateX(0); }
   }
+
+  #graficoVotos {
+    width: 100%;
+    max-width: 800px;
+    height: 400px;
+    margin: auto;
+    display: block;
+  }
+  
   
   .tabla-resumen {
     width: 100%;
@@ -194,5 +203,57 @@ body {
     font-size: 1.5rem;
     margin: 1rem 0;
     color: #333;
+  }
+
+  #graficoVotos {
+    display: block;
+    margin: 0 auto;
+    padding: 0;
+    max-width: 100%;
+  }
+  
+  canvas {
+    display: block;
+    margin: 0 auto;
+  }
+  
+  h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem; /* bajá este valor si deja mucho espacio */
+  }
+  
+  #graficos-container {
+    margin-bottom: 1rem; /* reducí esto si hay mucho espacio antes de la tabla */
+  }
+  
+  .panel-resumen {
+    margin-bottom: 1rem; /* o incluso 0.5rem si querés que estén más cerca */
+  }
+
+  .info-superior {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #17b3c6;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  
+  .fecha-hora {
+    font-weight: bold;
+  }
+  
+  .porcentaje-escrutadas {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+  
+  .porcentaje-escrutadas span {
+    font-size: 2.5rem;
+    color: #ffffff;
   }
   

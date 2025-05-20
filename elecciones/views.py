@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 import json
+from datetime import datetime
 
 @csrf_exempt
 def login_view(request):
@@ -192,7 +193,6 @@ def resultados_panelista(request):
 
     # Convertimos defaultdict a dict normal para pasar al template
     grafico_datos = {partido: dict(cargos) for partido, cargos in grafico_datos.items()}
-
     votos_por_partido_y_cargo = {cargo: dict(partidos) for cargo, partidos in votos_por_partido_y_cargo.items()}
 
     partidos_postulados = PartidoPostulacion.objects.all()
@@ -215,11 +215,18 @@ def resultados_panelista(request):
 
         resultados.append(mesa_resultado)
 
+    ahora = datetime.now()
+    fecha_actual = ahora.strftime("%d/%m/%Y")
+    hora_actual = ahora.strftime("%H:%M:%S")
+
     return render(request, 'panel_panelista/panel_panelista.html', {
         'resultados': resultados,
         'mesas': mesas,
         'partidos_postulados': partidos_postulados,
         'porcentaje_escrutadas': porcentaje_escrutadas,
-        'votos_por_partido_y_cargo': votos_por_partido_y_cargo
+        'votos_por_partido_y_cargo': votos_por_partido_y_cargo,
+        'fecha_actual': fecha_actual,
+        'hora_actual': hora_actual
     })
+
 

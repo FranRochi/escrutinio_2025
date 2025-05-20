@@ -61,17 +61,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const contenedorGraficos = document.getElementById('graficos-por-cargo');
 
   Object.entries(votosData).forEach(([cargo, partidos], index) => {
-    // Crear canvas
     const canvas = document.createElement('canvas');
     canvas.id = `grafico-cargo-${index}`;
-    canvas.width = 600;
-    canvas.height = 300;
+    canvas.style.width = '600px';   // Estilo visual
+    canvas.style.height = '300px';  // Estilo visual
     contenedorGraficos.appendChild(canvas);
-
+  
     const ctx = canvas.getContext('2d');
+  
+    // 🔍 Alta resolución
+    const scale = window.devicePixelRatio || 1;
+    canvas.width = 600 * scale;
+    canvas.height = 300 * scale;
+    ctx.scale(scale, scale);
+  
     const labels = Object.keys(partidos);
     const data = Object.values(partidos);
-
+  
     new Chart(ctx, {
       type: 'bar',
       data: {
@@ -85,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }]
       },
       options: {
-        responsive: true,
+        responsive: false, // ❗ Desactivamos para evitar conflictos con escalado manual
         plugins: {
           title: {
             display: true,
@@ -109,3 +115,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
+  
