@@ -1,0 +1,44 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: escrutinio_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1q2w3e4r!}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-escrutinio}
+      MYSQL_USER: ${MYSQL_USER:-escrutinio_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-1q2w3e4r!}
+    ports:
+      - "3308:3306"
+    volumes:
+      - escrutinio_db_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+
+  web:
+    build: .
+    container_name: escrutinio_web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-0}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+    ports:
+      - "8003:8000"
+    volumes:
+      - /srv/escrutinio/staticfiles:/app/staticfiles   # << para Nginx
+
+volumes:
+  escrutinio_db_data:

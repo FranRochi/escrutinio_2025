@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Archivos de configuración locales
+*.env
+.env.*
+
+# Archivos de base de datos y dumps
+*.sqlite3
+*.db
+*.sql
+
+# Archivos temporales y logs
+*.log
+*.pot
+*.pyc
+*.pkl
+*.swp
+.DS_Store
+Thumbs.db
+
+# Archivos de Django
+media/
+staticfiles/
+*.mo
+
+# Archivos de migraciones que no quieras subir (opcional)
+# */migrations/
+
+# Archivos de Docker
+*.pid
+docker-compose.override.yml
+
+# IDEs y editores
+.vscode/
+.idea/
+*.iml
+
+# Compilados
+*.out
+*.o
+*.obj
+*.dll
+*.exe

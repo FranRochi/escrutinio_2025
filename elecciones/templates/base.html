@@ -1,11 +1,17 @@
 {% load static %}
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Sistema de Escrutinio</title>
+
+  <!-- 👇 Imprescindible para que funcionen los @media en móviles -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- (opcional) color barra de estado en móviles -->
+  <meta name="theme-color" content="#31b8f0">
+
+  <!-- Asegurate que el nombre coincida: ¿styles.css o estilos.css? -->
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
@@ -17,15 +23,16 @@
     {% block content %}{% endblock %}
   </main>
 
+  <!-- Evitá errores cuando la variable no existe en ciertas vistas -->
   <script>
-    const votosData = {{ votos_por_partido_y_cargo|safe }};
+    window.votosData = {% if votos_por_partido_y_cargo %}{{ votos_por_partido_y_cargo|safe }}{% else %}{}{% endif %};
   </script>
 
-  <script src="{% static 'js/operador.js' %}"></script>
+  <!-- Carga de scripts: mejor “defer” y por página cuando sea posible -->
+  <script src="{% static 'js/operador.js' %}" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="{% static 'js/panelista.js' %}" defer></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <script src="{% static 'js/panelista.js' %}"></script>
-
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

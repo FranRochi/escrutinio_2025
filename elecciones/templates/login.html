@@ -1,37 +1,60 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Iniciar sesión</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <meta charset="UTF-8">
+  <title>Iniciar sesión</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
-<body>
+<body class="login-page">
 
-<header>
-    <h1>Bienvenido al Sistema de Escrutinio</h1>
-</header>
+  <!-- Hero superior con logos y título -->
+  <header class="login-hero" role="banner">
+    <img class="brand-left"
+         src="{% static 'img/logo_FuerzaPatria.jpg' %}"
+         alt="Fuerza Patria"
+         loading="lazy" decoding="async" />
+    <h1 class="hero-title">SISTEMA DE ESCRUTINIO</h1>
+    <img class="brand-right"
+         src="{% static 'img/urna.jpg' %}"
+         alt="Urna"
+         loading="lazy" decoding="async" />
+  </header>
 
-<main>
-    <h2>Iniciar sesión</h2>
+  <div class="login-container">
+    <div class="login-card" role="region" aria-label="Formulario de inicio de sesión">
+      <div class="login-header">
+        <p class="login-subtitle">Ingresá con tu usuario y contraseña</p>
+      </div>
 
-    {% if error %}
-        <p style="color:red;">Usuario o contraseña incorrectos.</p>
-    {% endif %}
+      {% if error %}
+        <div class="alert-error" role="alert">Usuario o contraseña incorrectos.</div>
+      {% endif %}
 
-    <form method="post">
+      <form method="post" action="{% url 'login' %}"
+            onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Ingresando…';">
         {% csrf_token %}
-        <fieldset>
-            <label for="username">Usuario:</label>
-            <input type="text" name="username" required>
-            <br>
-            <label for="password">Contraseña:</label>
-            <input type="password" name="password" required>
-            <br>
-            <button type="submit">Ingresar</button>
-        </fieldset>
-    </form>
-</main>
+        {% if request.GET.next %}
+          <input type="hidden" name="next" value="{{ request.GET.next }}">
+        {% endif %}
+
+        <div class="form-group">
+          <label for="username">Usuario</label>
+          <input type="text" id="username" name="username"
+                 autocomplete="username" autofocus required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" name="password"
+                 autocomplete="current-password" required>
+        </div>
+
+        <button type="submit" class="btn-primary w-100">Ingresar</button>
+      </form>
+    </div>
+  </div>
 
 </body>
 </html>
