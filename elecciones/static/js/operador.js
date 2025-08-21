@@ -96,8 +96,144 @@ function showNotification(msg, timeout=3000) {
 // Para evitar notificaciones repetidas mientras la columna se mantenga en CAP
 const notifiedAtCap = new Set(); // guarda ids de cargo (cId) que ya notificaron
 
+function updateMesaOptionAppearance(mesaId, escrutada = true) {
+  const sel = document.getElementById("mesa_select");
+  if (!sel) return;
+  const opt = Array.from(sel.options).find(o => String(o.value) === String(mesaId));
+  if (!opt) return;
+  opt.dataset.escrutada = escrutada ? "1" : "0";
+  // normalizar el texto (sin duplicar el "✓")
+  const baseText = opt.textContent.replace(/\s*\(✓\s*escrutada\)\s*$/i, "");
+  opt.textContent = escrutada ? `${baseText} (✓ escrutada)` : baseText;
+}
+
+let IS_PAINTING = false;
+let IS_SAVING = false; //candado para evitar doble submit
+
+function getActiveRoot() {
+  const desk = document.querySelector('.only-landscape');
+  const mob  = document.querySelector('.only-mobile');
+
+  const isVisible = el => !!(el && el.offsetParent !== null);
+  // Si desktop está visible, usalo; si no, mobile.
+  return isVisible(desk) ? desk : mob || document;
+}
+
+/* === OFFLINE QUEUE (IndexedDB) – helpers en ventana === */
+(function(){
+  const DB = 'votos-offline';
+  const STORE = 'queue';
+  function openDB(){
+    return new Promise((res, rej)=>{
+      const r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function tx(mode, fn){
+    const db = await openDB();
+    return new Promise((ok,ko)=>{
+      const t = db.transaction(STORE, mode);
+      const s = t.objectStore(STORE);
+      fn(s, t);
+      t.oncomplete = ok;
+      t.onerror = () => ko(t.error);
+    });
+  }
+  window.OfflineQueue = {
+    add: (rec) => tx('readwrite', s => s.add({ ...rec, status:'pending', createdAt: Date.now() })),
+    list: () => new Promise(async ok=>{
+      const db = await openDB(); const t = db.transaction(STORE,'readonly'); const s=t.objectStore(STORE);
+      const r = s.getAll(); r.onsuccess=()=>ok(r.result||[]);
+    }),
+    get: (id) => new Promise(async ok=>{
+      const db = await openDB(); const t = db.transaction(STORE,'readonly'); const s=t.objectStore(STORE);
+      const r = s.get(id); r.onsuccess=()=>ok(r.result||null);
+    }),
+    update: (id, patch) => tx('readwrite', (s)=> s.get(id).onsuccess = (e) => s.put({ ...e.target.result, ...patch })),
+    remove: (id) => tx('readwrite', s => s.delete(id)),
+  };
+})();
+
+/* === Service Worker: registro + utilidades === */
+async function drainNow(){
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({ type:'DRAIN_NOW' });
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if ('sync' in reg) await reg.sync.register('send-votos');
+    } catch {}
+  } else {
+    // fallback: no hay SW controlando todavía
+    manualDrainFromPage();
+  }
+}
+
+// Cuando el SW pida confirmación (409), mostramos confirm y reintentamos con overwrite
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw-votos.js').catch(()=>{});
+  navigator.serviceWorker.addEventListener('message', async (ev) => {
+    if (ev.data?.type === 'NEEDS_CONFIRM') {
+      const { id, message } = ev.data;
+      const it = await OfflineQueue.get(id);
+      if (!it) return;
+      const ok = confirm(message || "La mesa ya fue escrutada. ¿Sobrescribir con esta carga?");
+      if (ok) {
+        await OfflineQueue.update(id, { status:'pending', payload: { ...it.payload, overwrite:true } });
+        drainNow();
+      } else {
+        await OfflineQueue.update(id, { status:'cancelled' });
+      }
+    }
+  });
+  window.addEventListener('online', drainNow);
+}
+
+// Fallback (sin SW): drenar desde la misma página
+async function manualDrainFromPage(){
+  const items = await OfflineQueue.list();
+  for (const it of items.filter(x => x.status==='pending')) {
+    try {
+      const res = await fetch("/operador/guardar-votos/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": it.csrf || ""
+        },
+        body: JSON.stringify(it.payload),
+      });
+      const data = await res.json().catch(()=>({}));
+      if (res.ok && data.status === "ok") {
+        await OfflineQueue.remove(it.id);
+      } else if (res.status === 409) {
+        const ok = confirm((data.message || "La mesa ya está escrutada. ¿Sobrescribir?"));
+        if (ok) {
+          await OfflineQueue.update(it.id, { status:'pending', payload: { ...it.payload, overwrite:true } });
+          return manualDrainFromPage();
+        } else {
+          await OfflineQueue.update(it.id, { status:'cancelled' });
+        }
+      } else if (res.status === 403) {
+        await OfflineQueue.update(it.id, { status:'blocked_auth' });
+      }
+    } catch (e) {
+      // sigue pending
+    }
+  }
+}
+
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Marcar visualmente las mesas que ya vienen escrutadas desde el servidor
+  const selMesa = document.getElementById("mesa_select");
+  if (selMesa) {
+    Array.from(selMesa.options).forEach(o => {
+      if (o.dataset.escrutada === "1") updateMesaOptionAppearance(o.value, true);
+    });
+  }
+
   const mesaSelect = document.getElementById("mesa_select");
   const mensajeError = document.getElementById("mensaje_error_mesa");
   const enviarVotosBtns = Array.from(document.querySelectorAll(".btn-enviar-votos"));
@@ -178,11 +314,67 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   if (mesaSelect) mesaSelect.addEventListener("change", syncBotonesEnviar);
   syncBotonesEnviar();
+  if (mesaSelect) {
+  mesaSelect.addEventListener("change", () => {
+    const mesaId = mesaSelect.value;
+    if (!mesaId) { limpiarFormulario(); return; }
+
+    IS_PAINTING = true;                 // ⬅️ ACTIVAR
+
+    limpiarFormulario();
+
+    fetch(`/operador/mesa/${mesaId}/datos/`, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data?.status !== "ok") return;
+
+      updateMesaOptionAppearance(mesaId, String(data.escrutada) === "1");
+
+      // resumen
+      const rv = data.resumen || {};
+      const el1 = document.getElementById("electores_votaron");
+      const el2 = document.getElementById("sobres_encontrados");
+      const el3 = document.getElementById("diferencia_sobres");
+      if (el1) el1.value = rv.electores_votaron ?? "";
+      if (el2) el2.value = rv.sobres_encontrados ?? "";
+      if (el3) el3.value = rv.diferencia ?? "";
+
+      // agrupaciones
+      (data.votos_cargo || []).forEach(v => {
+        document.querySelectorAll(
+          `.voto_input[data-cargo="${v.cargo_id}"][data-partido="${v.partido_postulacion_id}"]`
+        ).forEach(inp => { inp.value = format3(v.votos); });
+      });
+
+      // especiales
+      (data.votos_especiales || []).forEach(v => {
+        document.querySelectorAll(
+          `.voto_especial_input[data-cargo="${v.cargo_postulacion_id}"][data-tipo="${v.tipo}"]`
+        ).forEach(inp => { inp.value = format3(v.votos); });
+      });
+
+    })
+    .catch(err => {
+      console.error("Error cargando mesa:", err);
+    })
+    .finally(() => {
+      IS_PAINTING = false;              // ⬅️ DESACTIVAR
+      // Al terminar de pintar: solo recalcular totales, SIN enforcement destructivo ni notificación
+      calcularTotales();
+    });
+  });
+
+}
+
 
   // Click para TODOS los botones visibles
   enviarVotosBtns.forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!btn.disabled) enviarVotos();
+      if (!btn.disabled && !IS_SAVING) enviarVotos();
     });
   });
 
@@ -190,28 +382,31 @@ document.addEventListener("DOMContentLoaded", function () {
    * Recorre todos los inputs y aplica la regla: si valor > E o >350 => 000
    */
   function sanitizeAllVotesAgainstE() {
-    const E = getElectoresCap();
-    document.querySelectorAll('.voto_input, .voto_especial_input').forEach((input) => {
+    const root = getActiveRoot();
+    root.querySelectorAll('.voto_input, .voto_especial_input').forEach((input) => {
       const n = sanitizeVoteForInputs(input.value);
       input.value = n ? digitsOnly(String(n)).slice(0, 3) : "";
     });
   }
-
   /**
    * Por cada cargo:
    *  - Si algún input == E (y E>0), los demás inputs de ese cargo => "000".
    *  - En cualquier caso, valores >E o >350 ya quedan en "000" por sanitizeVoteForInputs.
    */
   function enforceCapAndDominanceByCargo() {
+    if (IS_PAINTING) return;
+
     const CAP = getEffectiveCap();
+    const root = getActiveRoot();
+
     if (CAP <= 0) {
-      document.querySelectorAll('.voto_input, .voto_especial_input').forEach(inp => { inp.value = ""; });
+      root.querySelectorAll('.voto_input, .voto_especial_input')
+        .forEach(inp => { inp.value = ""; });
       return;
     }
 
-    // Agrupar inputs por columna/cargo
     const inputsByCargo = new Map();
-    document.querySelectorAll('.voto_input[data-cargo], .voto_especial_input[data-cargo]').forEach(inp => {
+    root.querySelectorAll('.voto_input[data-cargo], .voto_especial_input[data-cargo]').forEach(inp => {
       const cId = String(inp.dataset.cargo || "");
       if (!inputsByCargo.has(cId)) inputsByCargo.set(cId, []);
       inputsByCargo.get(cId).push(inp);
@@ -224,7 +419,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const n = sanitizeVoteForInputs(inp.value);
         inp.value = n ? digitsOnly(String(n)).slice(0, 3) : "";
         if (n === CAP && dominantIndex === -1) {
-          dominantIndex = idx; // el primero que iguala E domina la columna
+          dominantIndex = idx;
         }
       });
 
@@ -242,11 +437,13 @@ document.addEventListener("DOMContentLoaded", function () {
    * - Si pasa, se van ajustando los últimos valores ingresados a 000
    */
   function enforceMaxSumByCargo() {
+    if (IS_PAINTING) return;
+
     const CAP = getEffectiveCap();
+    const root = getActiveRoot();
     const cargos = new Map();
 
-    // Reunir inputs por cargo (partidos + especiales)
-    document.querySelectorAll('.voto_input[data-cargo], .voto_especial_input[data-cargo]').forEach(inp => {
+    root.querySelectorAll('.voto_input[data-cargo], .voto_especial_input[data-cargo]').forEach(inp => {
       const cId = String(inp.dataset.cargo || "");
       if (!cargos.has(cId)) cargos.set(cId, []);
       cargos.get(cId).push(inp);
@@ -259,15 +456,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (sum > CAP) {
         let overshoot = sum - CAP;
-
-        // Reducimos desde el último input con valor > 0 hacia arriba
         for (let i = inputs.length - 1; i >= 0 && overshoot > 0; i--) {
           const inp = inputs[i];
           const n = getVoteValue(inp);
           if (n > 0) {
             const quitar = Math.min(n, overshoot);
-            const nuevo = n - quitar;          // clamp hacia abajo
-            inp.value = nuevo ? format3(nuevo) : ""; // “000” si quedó en 0
+            const nuevo = n - quitar;
+            inp.value = nuevo ? format3(nuevo) : "";
             overshoot -= quitar;
           }
         }
@@ -278,23 +473,25 @@ document.addEventListener("DOMContentLoaded", function () {
   /** Chequea que la suma de (partidos + blancos + impugnados) no pase E
    *  y muestra una notificación sutil SOLO la primera vez que una columna llega EXACTA a E.
    */
-  function enforceGlobalSumByCargo() {
+  function enforceGlobalSumByCargo(silent = false) {
+    if (IS_PAINTING) return;
+
     const CAP = getEffectiveCap();
     if (CAP <= 0) return;
 
+    const root = getActiveRoot();
     const cargos = new Map();
-    document.querySelectorAll('.voto_input[data-cargo], .voto_especial_input[data-cargo]').forEach(inp => {
+
+    root.querySelectorAll('.voto_input[data-cargo], .voto_especial_input[data-cargo]').forEach(inp => {
       const cId = String(inp.dataset.cargo || "");
       if (!cargos.has(cId)) cargos.set(cId, []);
       cargos.get(cId).push(inp);
     });
 
     cargos.forEach((inputs, cId) => {
-      // 1) Suma actual
       let sum = 0;
       inputs.forEach(inp => { sum += getVoteValue(inp); });
 
-      // 2) Si se excede, ajustamos desde el último input hacia arriba
       if (sum > CAP) {
         let overshoot = sum - CAP;
         for (let i = inputs.length - 1; i >= 0 && overshoot > 0; i--) {
@@ -309,18 +506,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      // 3) Recalcular suma tras posibles ajustes
+      // recalcular tras ajustes
       let total = 0;
       inputs.forEach(inp => { total += getVoteValue(inp); });
 
-      // 4) Notificar solo una vez por columna cuando llega EXACTO a E
+      // notificación respetando "silent"
       if (total === CAP) {
-        if (!notifiedAtCap.has(cId)) {
+        if (!silent && !notifiedAtCap.has(cId)) {
           showNotification("⚠️ Se alcanzó la cantidad de electores que han votado");
           notifiedAtCap.add(cId);
         }
       } else {
-        // Si baja de E, permitir notificar nuevamente cuando vuelva a llegar
         if (notifiedAtCap.has(cId)) notifiedAtCap.delete(cId);
       }
     });
@@ -331,25 +527,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 function calcularTotales() {
+  const root = getActiveRoot();
+
   const cargoIdSet = new Set();
-  document.querySelectorAll('.voto_input[data-cargo]').forEach(el => {
+  root.querySelectorAll('.voto_input[data-cargo]').forEach(el => {
     if (el.dataset.cargo) cargoIdSet.add(String(el.dataset.cargo));
   });
 
   const totalesAgrupaciones = {};
   cargoIdSet.forEach(cId => totalesAgrupaciones[cId] = 0);
 
-  document.querySelectorAll('.voto_input[data-cargo]').forEach(input => {
+  // Sólo inputs visibles del scope activo
+  root.querySelectorAll('.voto_input[data-cargo]').forEach(input => {
     const cId = String(input.dataset.cargo || "");
     if (!cargoIdSet.has(cId)) return;
-    const v = getVoteValue(input); // <<<<
+    const v = getVoteValue(input);
     totalesAgrupaciones[cId] += v;
   });
 
   cargoIdSet.forEach(cId => {
     const txt = format3(totalesAgrupaciones[cId] || 0);
-    document.querySelectorAll(`[data-total-cargo="${cId}"]`).forEach(el => { if (el) el.value = txt; });
-    const byId = document.getElementById(`total_${cId}`);
+    root.querySelectorAll(`[data-total-cargo="${cId}"]`).forEach(el => { if (el) el.value = txt; });
+    const byId = root.querySelector(`#total_${cId}`);
     if (byId) byId.value = txt;
   });
 }
@@ -373,47 +572,43 @@ function limpiarFormulario() {
 }
 
 function enviarVotos() {
+  if (IS_SAVING) return;
+  IS_SAVING = true;
+
   const mesaIdEl = document.getElementById("mesa_id");
   if (!mesaIdEl || !mesaIdEl.value) {
     alert("Seleccioná una mesa");
+    IS_SAVING = false;
     return;
   }
 
   const votosCargo = [];
   const votosEspeciales = [];
 
-  // Enviar SOLO valores > 0 (reduce payload y trabajo en DB)
-  // 1) votos de agrupaciones
   document.querySelectorAll(".voto_input").forEach(input => {
-    const cantidad = getVoteValue(input);  // <<<< antes: toNumber(...)
+    const cantidad = getVoteValue(input);
     if (cantidad === 0) return;
-    const partidoId = input.dataset.partido;
-    const cargoId = input.dataset.cargo;
     votosCargo.push({
-      partido_postulacion_id: Number(partidoId),
-      cargo_id: Number(cargoId),
+      partido_postulacion_id: Number(input.dataset.partido),
+      cargo_id: Number(input.dataset.cargo),
       votos: cantidad,
     });
   });
 
-  // 2) especiales
   document.querySelectorAll(".voto_especial_input").forEach(input => {
-    const cantidad = getVoteValue(input);  // <<<< antes: toNumber(...)
+    const cantidad = getVoteValue(input);
     if (cantidad === 0) return;
-    const tipoVoto = input.dataset.tipo;
-    const cargoId = input.dataset.cargo;
     votosEspeciales.push({
-      tipo: tipoVoto,
-      cargo_postulacion_id: Number(cargoId),
+      tipo: input.dataset.tipo,
+      cargo_postulacion_id: Number(input.dataset.cargo),
       votos: cantidad,
     });
   });
 
-  // 3) resumen
   const resumenMesa = {
-    electores_votaron: toNumber350(document.getElementById("electores_votaron")?.value), // <<<<
-    sobres_encontrados: toNumber350(document.getElementById("sobres_encontrados")?.value), // <<<<
-    diferencia: toNumber350(document.getElementById("diferencia_sobres")?.value),          // <<<<
+    electores_votaron: toNumber350(document.getElementById("electores_votaron")?.value),
+    sobres_encontrados: toNumber350(document.getElementById("sobres_encontrados")?.value),
+    diferencia: toNumber350(document.getElementById("diferencia_sobres")?.value),
   };
 
   const payload = {
@@ -423,10 +618,29 @@ function enviarVotos() {
     resumen_mesa: resumenMesa,
   };
 
-  // Feedback visual: overlay + deshabilitar botones
+  // UI: overlay y botones
   document.getElementById("saving_overlay")?.removeAttribute("hidden");
   document.querySelectorAll(".btn-enviar-votos").forEach(b => b.disabled = true);
 
+  // === Rama OFFLINE / error de red: guardar en cola ===
+  const queueAndFinish = async () => {
+    await OfflineQueue.add({ payload, csrf: getCookie('csrftoken') });
+    showNotification("📶 Sin conexión: mesa guardada localmente. Se enviará automáticamente.", 4000);
+    // mantenemos el formulario como está para que el operador decida
+    document.getElementById("saving_overlay")?.setAttribute("hidden", "");
+    const mid = document.getElementById("mesa_id")?.value || "";
+    document.querySelectorAll(".btn-enviar-votos").forEach(b => b.disabled = !mid);
+    IS_SAVING = false;
+    drainNow(); // por si volvió la red
+  };
+
+  // Si ya estamos offline, directo a cola
+  if (!navigator.onLine) {
+    queueAndFinish();
+    return;
+  }
+
+  // Intento online normal
   fetch("/operador/guardar-votos/", {
     method: "POST",
     credentials: "same-origin",
@@ -437,47 +651,75 @@ function enviarVotos() {
     },
     body: JSON.stringify(payload),
   })
-    .then(async (res) => {
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.status === "ok") {
-        alert("✅ Votos guardados correctamente");
-
-        // Quitar mesa del select y limpiar
-        const mesaSelect = document.getElementById("mesa_select");
-        if (mesaSelect) {
-          mesaSelect.remove(mesaSelect.selectedIndex);
-          const hiddenMesaId = document.getElementById("mesa_id");
-          if (hiddenMesaId) hiddenMesaId.value = "";
-        }
-
-        limpiarFormulario();
-        scrollTopSmooth();
-
-        const msg = document.getElementById("mensaje_validacion");
-        if (msg) {
-          msg.style.display = "block";
-          msg.style.color = "green";
-          msg.textContent = "Mesa guardada y marcada como escrutada. Seleccioná otra mesa.";
-        }
-      } else {
-        if (res.status === 409) {
-          alert(data.message || "La mesa ya fue escrutada y no puede modificarse.");
-        } else if (res.status === 401 || res.status === 403) {
-          alert("Sesión no válida o sin permisos. Volvé a iniciar sesión.");
-        } else {
-          alert("❌ Error al guardar votos: " + (data.message || `HTTP ${res.status}`));
-        }
-        console.error("Guardar votos - respuesta:", res.status, data);
+  .then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.status === "ok") {
+      alert("✅ Votos guardados correctamente");
+      const mesaId = document.getElementById("mesa_id")?.value;
+      if (mesaId) updateMesaOptionAppearance(mesaId, true);
+      limpiarFormulario();
+      const sel = document.getElementById("mesa_select");
+      if (sel) sel.value = "";
+      const hiddenMesaId = document.getElementById("mesa_id");
+      if (hiddenMesaId) hiddenMesaId.value = "";
+      document.querySelectorAll(".btn-enviar-votos").forEach(b => b.disabled = true);
+      scrollTopSmooth();
+      const msg = document.getElementById("mensaje_validacion");
+      if (msg) {
+        msg.style.display = "block";
+        msg.style.color = "green";
+        msg.textContent = "Mesa guardada. Volvé a seleccionarla para editar/sobrescribir.";
       }
-    })
-    .catch(err => {
-      console.error("Error al enviar votos:", err);
-      alert("❌ Error de red o servidor");
-    })
-    .finally(() => {
-      // Ocultar overlay y re-habilitar según mesa
-      document.getElementById("saving_overlay")?.setAttribute("hidden", "");
-      const mesaId = document.getElementById("mesa_id")?.value || "";
-      document.querySelectorAll(".btn-enviar-votos").forEach(b => b.disabled = !mesaId);
-    });
+      return;
+    }
+
+    if (res.status === 409) {
+      // mismo flujo de confirmación online de siempre
+      const confirmar = confirm((data.message || "La mesa ya está escrutada. ¿Querés sobrescribir los datos con esta nueva carga?"));
+      if (confirmar) {
+        payload.overwrite = true;
+        return fetch("/operador/guardar-votos/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie('csrftoken'),
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: JSON.stringify(payload),
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, status: r.status, data: d })))
+        .then(async ({ ok, status, data }) => {
+          if (ok && data.status === "ok") {
+            alert("✅ Mesa sobrescrita correctamente");
+            const mesaId = document.getElementById("mesa_id")?.value;
+            if (mesaId) updateMesaOptionAppearance(mesaId, true);
+            limpiarFormulario();
+            const sel2 = document.getElementById("mesa_select"); if (sel2) sel2.value = "";
+            const hiddenMesaId2 = document.getElementById("mesa_id"); if (hiddenMesaId2) hiddenMesaId2.value = "";
+            document.querySelectorAll(".btn-enviar-votos").forEach(b => b.disabled = true);
+            scrollTopSmooth();
+            const msg2 = document.getElementById("mensaje_validacion");
+            if (msg2) { msg2.style.display = "block"; msg2.style.color = "green"; msg2.textContent = "Cambios guardados. Volvé a seleccionar la mesa para seguir editando."; }
+            return;
+          }
+          alert("❌ No se pudo sobrescribir: " + (data?.message || `HTTP ${status}`));
+        });
+      }
+      return;
+    }
+
+    // cualquier otro código → mandamos a cola
+    await queueAndFinish();
+  })
+  .catch(async (err) => {
+    console.error("Error al enviar votos:", err);
+    await queueAndFinish();
+  })
+  .finally(() => {
+    document.getElementById("saving_overlay")?.setAttribute("hidden", "");
+    const mesaId = document.getElementById("mesa_id")?.value || "";
+    document.querySelectorAll(".btn-enviar-votos").forEach(b => b.disabled = !mesaId);
+    IS_SAVING = false;
+  });
 }

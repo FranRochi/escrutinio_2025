@@ -12,6 +12,8 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from datetime import datetime
 from django.db.models import Sum
+import logging
+from django.db import transaction
 
 @csrf_exempt
 def login_view(request):
@@ -74,7 +76,7 @@ def panel_operador(request):
 
     # 👇 solo mesas de su escuela y pendientes
     mesas = (Mesa.objects
-                  .filter(escuela_id=request.user.escuela_id, escrutada=False)
+                  .filter(escuela_id=request.user.escuela_id)
                   .order_by('numero_mesa'))
 
     partidos = Partido.objects.all()
@@ -105,72 +107,159 @@ def panel_operador(request):
 # Guardar votos (con validación de tipos especiales)
 # ----------------------------
 
+audit = logging.getLogger("audit")
+app_log = logging.getLogger("app")
+
+VALID_TIPOS_ESPECIALES = {"blanco", "nulo", "recurrido", "impugnado"}  # ajustá si tu modelo usa otros nombres
+
+def _to_int(x, default=0):
+    try:
+        return int(x)
+    except Exception:
+        return default
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def guardar_votos(request):
+    user = request.user
+
+    if not (user.is_authenticated and getattr(user, "role", None) == "operador" and getattr(user, "escuela_id", None)):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    # DRF ya parseó JSON en request.data (no tocar request.body)
+    mesa_id = request.data.get('mesa_id')
+    votos_cargo = request.data.get('votos_cargo', []) or []
+    votos_especiales = request.data.get('votos_especiales', []) or []
+    resumen_mesa = request.data.get('resumen_mesa', {}) or {}
+    overwrite = bool(request.data.get('overwrite'))
+
+    # Mesa válida y de la escuela del operador
+    mesa = get_object_or_404(Mesa, id=mesa_id, escuela_id=user.escuela_id)
+
+    # ¿Ya estaba escrutada?
+    estaba_escrutada = bool(mesa.escrutada)
+
+    # Si está escrutada y no pidieron overwrite => 409 + log de intento
+    if estaba_escrutada and not overwrite:
+        audit.info(f"INTENTO_OVERWRITE usuario={user.username} mesa_id={mesa.id}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'La mesa {mesa.numero_mesa} ya fue escrutada.'
+        }, status=409)
+
     try:
-        user = request.user
-        if user.role != 'operador' or not user.escuela_id:
-            return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+        with transaction.atomic():
+            # --- Votos por cargo (upsert) ---
+            for voto in votos_cargo:
+                partido_postulacion_id = voto.get('partido_postulacion_id')
+                cantidad = max(_to_int(voto.get('votos'), 0), 0)
 
-        # Usamos request.data (NO leer request.body para evitar el error del stream)
-        mesa_id = request.data.get('mesa_id')
-        votos_cargo = request.data.get('votos_cargo', [])
-        votos_especiales = request.data.get('votos_especiales', [])
-        resumen_mesa = request.data.get('resumen_mesa', {})
+                if not partido_postulacion_id:
+                    continue  # ignora items incompletos
 
-        # La mesa debe existir y pertenecer a la escuela del usuario
-        mesa = get_object_or_404(Mesa, id=mesa_id, escuela_id=user.escuela_id)
+                VotoMesaCargo.objects.update_or_create(
+                    mesa=mesa,
+                    partido_postulacion_id=partido_postulacion_id,
+                    defaults={'votos': cantidad},
+                )
 
-        if mesa.escrutada:
-            return JsonResponse({
-                'status': 'error',
-                'message': f'La mesa {mesa.numero_mesa} ya fue escrutada.'
-            })
+            # --- Votos especiales (upsert) ---
+            for voto in votos_especiales:
+                tipo = str(voto.get('tipo', '')).lower().strip()
+                cargo_post_id = voto.get('cargo_postulacion_id')
+                cantidad = max(_to_int(voto.get('votos'), 0), 0)
 
-        # --- votos por cargo (upsert para evitar duplicado por UNIQUE (mesa, partido_postulacion))
-        for voto in votos_cargo:
-            partido_postulacion_id = voto.get('partido_postulacion_id')
-            votos = max(int(voto.get('votos', 0)), 0)
+                if not cargo_post_id or not tipo:
+                    continue
+                # si querés forzar tipos válidos, descomentá:
+                # if tipo not in VALID_TIPOS_ESPECIALES: continue
 
-            VotoMesaCargo.objects.update_or_create(
+                VotoMesaEspecial.objects.update_or_create(
+                    mesa=mesa,
+                    cargo_postulacion_id=cargo_post_id,
+                    tipo=tipo,
+                    defaults={'votos': cantidad}
+                )
+
+            # --- Resumen (upsert) ---
+            electores_votaron  = max(_to_int(resumen_mesa.get('electores_votaron'), 0), 0)
+            sobres_encontrados = max(_to_int(resumen_mesa.get('sobres_encontrados'), 0), 0)
+            diferencia         = max(_to_int(resumen_mesa.get('diferencia'), 0), 0)
+
+            ResumenMesa.objects.update_or_create(
                 mesa=mesa,
-                partido_postulacion_id=partido_postulacion_id,
-                defaults={'votos': votos},
+                defaults={
+                    'electores_votaron': electores_votaron,
+                    'sobres_encontrados': sobres_encontrados,
+                    'diferencia': diferencia,
+                    'escrutada': True,
+                }
             )
 
-        # --- votos especiales (filtrar tipos válidos)
-        for voto in votos_especiales:
-            tipo = voto['tipo']
-            cargo_post_id = voto['cargo_postulacion_id']  # <-- asegúrate de mandarlo desde el front
-            cantidad = int(voto.get('votos', 0))
+            # Flag de mesa
+            if not mesa.escrutada:
+                mesa.escrutada = True
+                mesa.save(update_fields=['escrutada'])
 
-            VotoMesaEspecial.objects.update_or_create(
-                mesa=mesa,
-                cargo_postulacion_id=cargo_post_id,
-                tipo=tipo,
-                defaults={'votos': cantidad}
-            )
-
-        # --- resumen (upsert por si reenvían)
-        ResumenMesa.objects.update_or_create(
-            mesa=mesa,
-            defaults={
-                'electores_votaron': int(resumen_mesa.get('electores_votaron', 0)),
-                'sobres_encontrados': int(resumen_mesa.get('sobres_encontrados', 0)),
-                'diferencia': int(resumen_mesa.get('diferencia', 0)),
-                'escrutada': True,
-            }
-        )
-
-        mesa.escrutada = True
-        mesa.save(update_fields=['escrutada'])
+        # -------- logs de negocio (después de commit exitoso) --------
+        if not estaba_escrutada:
+            audit.info(f"MESA_ESCRUTADA usuario={user.username} mesa_id={mesa.id}")
+        else:
+            # llegó acá con overwrite=True
+            audit.info(f"MESA_EDITADA usuario={user.username} mesa_id={mesa.id}")
 
         return JsonResponse({'status': 'ok'})
 
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        # Log técnico con stacktrace
+        app_log.exception("Error guardando votos para mesa_id=%s", mesa_id)
+        return JsonResponse({'status': 'error', 'message': 'Error interno al guardar la mesa'}, status=500)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def mesa_datos(request, mesa_id):
+    user = request.user
+    if user.role != 'operador' or not user.escuela_id:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    mesa = get_object_or_404(Mesa, id=mesa_id, escuela_id=user.escuela_id)
+
+    # Resumen (si existe)
+    resumen_obj = ResumenMesa.objects.filter(mesa=mesa).first()
+    resumen = {
+        'electores_votaron': resumen_obj.electores_votaron if resumen_obj else 0,
+        'sobres_encontrados': resumen_obj.sobres_encontrados if resumen_obj else 0,
+        'diferencia': resumen_obj.diferencia if resumen_obj else 0,
+    }
+
+    # Votos por agrupación
+    votos_cargo = list(
+        VotoMesaCargo.objects.filter(mesa=mesa)
+        .values('partido_postulacion_id', 'partido_postulacion__cargo_postulacion_id', 'votos')
+    )
+    # Renombrar claves para que coincida con el front:
+    votos_cargo = [
+        {
+            'partido_postulacion_id': v['partido_postulacion_id'],
+            'cargo_id': v['partido_postulacion__cargo_postulacion_id'],
+            'votos': v['votos'],
+        }
+        for v in votos_cargo
+    ]
+
+    # Votos especiales
+    votos_especiales = list(
+        VotoMesaEspecial.objects.filter(mesa=mesa)
+        .values('cargo_postulacion_id', 'tipo', 'votos')
+    )
+
+    return JsonResponse({
+        'status': 'ok',
+        'escrutada': 1 if mesa.escrutada else 0,
+        'resumen': resumen,
+        'votos_cargo': votos_cargo,
+        'votos_especiales': votos_especiales,
+    })
 
 
 @login_required

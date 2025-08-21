@@ -90,8 +90,8 @@ USE_TZ = True
 
 # === Estáticos ===
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'        # << NECESARIO EN PRODUCCIÓN
 STATICFILES_DIRS = [BASE_DIR / 'elecciones' / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'   # ← agrega esto de nuevo
 
 # Si usás WhiteNoise:
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -114,9 +114,6 @@ SIMPLE_JWT = {
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/panel_operador/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
-
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
     "version": 1,
@@ -160,4 +157,3 @@ LOGGING = {
         "app": {"handlers": ["app_file"], "level": "INFO"},
     },
 }
-

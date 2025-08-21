@@ -2,6 +2,7 @@
 from django.urls import path
 from django.shortcuts import redirect
 from . import views
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('', lambda request: redirect('login'), name='root'),
@@ -12,6 +13,7 @@ urlpatterns = [
 
     # Panel operador
     path('panel_operador/', views.panel_operador, name='panel_operador'),
+    path('operador/mesa/<int:mesa_id>/datos/', views.mesa_datos, name='mesa_datos'),
 
     # Guardado
     path('operador/guardar-votos/', views.guardar_votos, name='guardar_votos'),

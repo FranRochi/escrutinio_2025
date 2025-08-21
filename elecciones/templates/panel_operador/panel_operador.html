@@ -3,7 +3,7 @@
 
 {% block content %}
 
-<h2>Telegrama de carga de votos</h2>
+<h2 class="page-title">Telegrama de carga de votos</h2>
 
 <!-- Overlay de guardado (feedback visual) -->
 <style>
@@ -23,22 +23,34 @@
   <!-- DATOS DE MESA + TABLA SECUNDARIA -->
   <div class="mesa-datos-container">
     <!-- DATOS -->
-    <fieldset class="datos-mesa">
+    <fieldset class="resumen-mesa">
       <legend>Datos de la mesa</legend>
-      <div class="campo">
-        <label>Escuela:</label>
-        <input type="text" value="{{ escuela_nombre }}" readonly>
-      </div>
-      <div class="campo">
-        <label for="mesa_select">Mesa:</label>
-        <select id="mesa_select">
-          <option value="">-- Seleccionar mesa --</option>
-          {% for m in mesas %}
-            <option value="{{ m.id }}">Mesa {{ m.numero_mesa }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div id="mensaje_error_mesa" class="error"></div>
+
+      <table class="tabla_telegrama">
+        <tbody>
+          <tr>
+            <td>Escuela</td>
+            <td>
+              <input type="text" value="{{ escuela_nombre }}" readonly class="w-100">
+            </td>
+          </tr>
+          <tr>
+            <td>Mesa</td>
+            <td>
+              <select id="mesa_select" class="w-100">
+                <option value="">-- Seleccionar mesa --</option>
+                {% for m in mesas %}
+                  <option value="{{ m.id }}" data-escrutada="{{ m.escrutada|default:0 }}">
+                    Mesa {{ m.numero_mesa }}{% if m.escrutada %} (✓ escrutada){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              <div id="mensaje_error_mesa" class="error-msg"></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
       <input type="hidden" id="mesa_id" name="mesa_id">
     </fieldset>
 
@@ -93,12 +105,24 @@
                     <div class="card-body">
                       <label class="sr-only" for="v_{{ candidatura.id }}">Votos</label>
                       <input id="v_{{ candidatura.id }}"
-                             type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                             class="voto_input"
-                             data-cargo="{{ cargo.id }}"
-                             data-partido="{{ candidatura.id }}"
-                             oninput="calcularTotales()"
-                             placeholder="000">
+                            type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
+                            class="voto_input"
+                            data-cargo="{{ cargo.id }}"
+                            data-partido="{{ candidatura.id }}"
+                            oninput="calcularTotales()"
+                            placeholder="000">
+                    </div>
+                  </article>
+                {% else %}
+                  <!-- Card para los que NO postulan (Diputados - móvil) -->
+                  <article class="card-partido no-postula" aria-disabled="true">
+                    <div class="card-header">
+                      <div class="num">{{ grupo.partido.numero_lista }}</div>
+                      <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
+                      <span class="badge-no-postula">No postula</span>
+                    </div>
+                    <div class="card-body">
+                      <div class="no-usa">(no usar)</div>
                     </div>
                   </article>
                 {% endif %}
