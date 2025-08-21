@@ -59,17 +59,24 @@ select {
 
 /* ====== Panel OPERADOR ====== */
 
-/* Contenedor para “Datos de la mesa” (izq) + “tabla secundaria” (der) */
+/* Contenedor para “Datos de la mesa” (izq) + “Resumen de la mesa” (der) */
 .mesa-datos-container {
-  display: flex;
-  gap: 30px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 380px 1fr;   /* izq fija, der ocupa resto */
+  gap: 24px;
+  align-items: stretch;               /* ambas cajas misma altura visual */
   margin-bottom: 20px;
 }
 
-/* Fieldset angosto a la izquierda */
-.datos-mesa { flex: 0 0 300px; }
-.resumen-mesa { flex: 1; }
+/* Ambos fieldsets llenan su celda del grid */
+.datos-mesa,
+.resumen-mesa {
+  height: 100%;
+  margin: 0;
+}
+
+/* (opcional) límite de ancho para que el de la izq no crezca más de lo deseado */
+.datos-mesa { max-width: 420px; }
 
 .datos-mesa .campo {
   display: flex;
@@ -112,6 +119,45 @@ select {
 }
 .input_corto { width: 100%; max-width: 100px; }
 
+/* === Resumen de la mesa: tabla plana, sin caja interna ni header azul === */
+.resumen-mesa .tabla_telegrama {
+  background: transparent;     /* sin fondo propio */
+  border: none;                 /* sin borde de caja */
+  box-shadow: none;             /* sin sombra */
+  max-width: none;              /* que ocupe el ancho disponible del fieldset */
+}
+
+.resumen-mesa .tabla_telegrama thead {
+  display: none;                /* ocultar fila de encabezado (el bloque azul) */
+}
+
+/* Celdas con separadores finos horizontales para look limpio */
+.resumen-mesa .tabla_telegrama td {
+  border-left: none;
+  border-right: none;
+  border-top: 1px solid #e9eef2;
+  border-bottom: 1px solid #e9eef2;
+  background: #fff;             /* filas blancas sobre el fieldset celeste suave */
+}
+
+/* Primera columna alineada a la izquierda, segunda columna más angosta */
+.resumen-mesa .tabla_telegrama td:first-child {
+  text-align: left;
+  width: 70%;
+  padding-left: 14px;
+}
+.resumen-mesa .tabla_telegrama td:last-child {
+  width: 30%;
+}
+
+/* Inputs compactos y centrados en la segunda columna */
+.resumen-mesa .tabla_telegrama input[type="number"] {
+  max-width: 110px;
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+}
+
 /* Tabla principal de votos */
 #tabla_votos {
   margin: 20px 0;
@@ -138,6 +184,37 @@ table th, table td { text-align: center; padding: 10px 12px; border: 1px solid #
 #tabla_votos input[type="number"] {
   width: 60px; padding: 4px 6px; font-size: 14px;
   text-align: right; border: 1px solid #ccc; border-radius: 4px; background-color: #fff;
+}
+
+/* Anchos sugeridos por columna para 4 col. más limpias */
+#tabla_votos th.col-index, #tabla_votos td.col-index { width: 70px; }
+#tabla_votos th.col-agrupa, #tabla_votos td.col-agrupa { width: 45%; text-align: left; padding-left: 12px; }
+#tabla_votos th.col-cargo,  #tabla_votos td.col-cargo  { width: 27.5%; }
+
+/* Inputs centrados en su celda */
+#tabla_votos td.col-cargo input[type="text"],
+#tabla_votos td.col-cargo input[type="number"],
+#tabla_votos td.col-cargo .voto_input,
+#tabla_votos td.col-cargo .voto_especial_input {
+  display: block;
+  margin: 0 auto;
+  text-align: center;
+  width: 70px;              /* podés ajustar 60–80px a gusto */
+  padding: 4px 6px;
+}
+
+/* Alinear también los especiales del footer */
+#tabla_votos tfoot td.col-cargo input[type="text"],
+#tabla_votos tfoot td.col-cargo input[type="number"] {
+  display: block;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Primera fila: N° 2200 + “Fuerza Patria” en negrita */
+#tabla_votos tbody tr:first-child td.col-index,
+#tabla_votos tbody tr:first-child td.col-agrupa {
+  font-weight: 800;
 }
 
 /* Quitar spinners en number (Chrome/Safari/Edge/Opera) */
@@ -218,6 +295,47 @@ canvas { display: block; margin: 0 auto; }
   background-color: #ffe6e6;
   animation: shake 0.2s ease-in-out;
 }
+
+/* ====== Cards para "NO postula" (mobile) ====== */
+.only-mobile .card-partido.no-postula {
+  background: #fafafa;
+  border: 1px dashed #cfd6dc;
+  opacity: 0.9;
+}
+
+.only-mobile .card-partido.no-postula .card-header .nombre {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.only-mobile .badge-no-postula {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: #6b7280;
+  background: #eef2f7;
+  border: 1px solid #d6dee6;
+  border-radius: 999px;
+}
+
+.only-mobile .card-partido.no-postula .no-usa {
+  text-align: center;
+  font-style: italic;
+  color: #777;
+  padding: 6px 0;
+}
+
+/* Mantener la altura visual similar a las cards con input */
+.only-mobile .card-partido.no-postula .card-body {
+  min-height: 48px; /* armoniza con el alto del input */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @keyframes shake {
   0% { transform: translateX(0); }
   25% { transform: translateX(-3px); }
@@ -243,6 +361,50 @@ canvas { display: block; margin: 0 auto; }
 
 
 @media (max-width: 768px) {
+
+    /* Evitar cualquier scroll horizontal global */
+  html, body { overflow-x: hidden; }
+
+  /* La grilla de "Datos de la mesa" + "Resumen" pasa a UNA columna */
+  .mesa-datos-container {
+    display: grid;                 /* sigue siendo grid, pero de una sola columna */
+    grid-template-columns: 1fr;    /* 👈 una columna */
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* Ambos fieldsets a ancho completo */
+  .datos-mesa,
+  .resumen-mesa {
+    max-width: 100%;
+    width: 100%;
+    height: auto;                  /* que no ‘estiren’ */
+    margin: 0;                     /* sin márgenes laterales que rompan el ancho */
+  }
+
+  /* La tabla interna del resumen 100% del ancho, sin tope */
+  .resumen-mesa .tabla_telegrama {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* ——— Títulos marcados en MOBILE ——— */
+  .only-mobile .cargo-title {
+    display: block;
+    margin: 14px 0 10px;
+    padding: 8px 12px;
+    font-size: 1.05rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color: #0a0a0a;
+    background: #eaf7ff;               /* banda suave */
+    border-left: 6px solid #31b8f0;     /* acento celeste */
+    border-radius: 8px;
+  }
+
+  /* (opcional) que no se peguen demasiado a las cards/inputs que siguen */
+  .only-mobile .cargo-cards { margin-top: 6px; }
 
   .login-hero .brand-left,
   .login-hero .brand-right { height: 56px; }
@@ -546,6 +708,32 @@ body.login-page {
 .resumen-mesa .tabla_telegrama th:first-child {
   width: 70%;
   text-align: left;
+}
+
+.noti-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.noti {
+  background: #323232;
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.noti.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ====== MOBILE: unificar Especiales + Totales en una card ====== */

@@ -89,8 +89,8 @@ USE_TZ = True
 
 # === Estáticos ===
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'        # << NECESARIO EN PRODUCCIÓN
 STATICFILES_DIRS = [BASE_DIR / 'elecciones' / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'   # ← agrega esto de nuevo
 
 # Si usás WhiteNoise:
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

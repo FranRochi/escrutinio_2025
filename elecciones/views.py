@@ -77,7 +77,7 @@ def panel_operador(request):
                   .filter(escuela_id=request.user.escuela_id, escrutada=False)
                   .order_by('numero_mesa'))
 
-    partidos = Partido.objects.all().order_by('numero_lista')
+    partidos = Partido.objects.all()
     cargos = CargoPostulacion.objects.all().order_by('id')
 
     partidos_map = []
@@ -90,7 +90,7 @@ def panel_operador(request):
             'candidaturas': candidatura_por_cargo
         })
 
-    tipos_voto_especial = ['blanco', 'impugnado', 'comando']
+    tipos_voto_especial = ['blanco', 'impugnado']
 
     return render(request, 'panel_operador/panel_operador.html', {
         'mesas': mesas,

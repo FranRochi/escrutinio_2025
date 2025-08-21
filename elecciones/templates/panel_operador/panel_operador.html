@@ -14,6 +14,9 @@
 </style>
 <div id="saving_overlay" class="saving-overlay" hidden>Guardando mesa…</div>
 
+<!-- Contenedor de notificaciones sutiles -->
+<div id="noti-container" class="noti-container"></div>
+
 <form method="POST">
   {% csrf_token %}
 
@@ -134,7 +137,7 @@
                      data-total-cargo="{{ cargo.id }}" readonly placeholder="000">
             </div>
             <div class="total-row">
-              <span>Total por columnas</span>
+              <span>SUMA TOTAL DE VOTOS</span>
               <input type="number" id="total_agrupaciones_{{ cargo.id }}">
             </div>
           {% endif %}
@@ -160,12 +163,24 @@
                     <div class="card-body">
                       <label class="sr-only" for="v_{{ candidatura.id }}">Votos</label>
                       <input id="v_{{ candidatura.id }}"
-                             type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                             class="voto_input"
-                             data-cargo="{{ cargo.id }}"
-                             data-partido="{{ candidatura.id }}"
-                             oninput="calcularTotales()"
-                             placeholder="000">
+                            type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
+                            class="voto_input"
+                            data-cargo="{{ cargo.id }}"
+                            data-partido="{{ candidatura.id }}"
+                            oninput="calcularTotales()"
+                            placeholder="000">
+                    </div>
+                  </article>
+                {% else %}
+                  <!-- Card para los que NO postulan -->
+                  <article class="card-partido no-postula" aria-disabled="true">
+                    <div class="card-header">
+                      <div class="num">{{ grupo.partido.numero_lista }}</div>
+                      <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
+                      <span class="badge-no-postula">No postula</span>
+                    </div>
+                    <div class="card-body">
+                      <div class="no-usa">(no usar)</div>
                     </div>
                   </article>
                 {% endif %}
@@ -204,7 +219,7 @@
                      data-total-cargo="{{ cargo.id}}" readonly placeholder="000">
             </div>
             <div class="total-row">
-              <span>Total por columnas</span>
+              <span>SUMA TOTAL DE VOTOS</span>
               <input type="number" id="total_agrupaciones_{{ cargo.id }}">
             </div>
           {% endif %}
@@ -257,7 +272,7 @@
                              placeholder="000">
                     </td>
                   {% else %}
-                    <td class="col-cargo col-cargo-{{ cargo.id }} no-postula">(no postula)</td>
+                    <td class="col-cargo col-cargo-{{ cargo.id }} no-postula">(no usar)</td>
                   {% endif %}
                 {% endwith %}
               {% endif %}
@@ -302,7 +317,7 @@
 
           <tr>
             <td></td>
-            <td><strong>Total por columnas</strong></td>
+            <td><strong>SUMA TOTAL DE VOTOS</strong></td>
             {% for cargo in cargos %}
               {% if cargo.nombre_postulacion == "Diputados Provinciales" or cargo.nombre_postulacion == "Concejales" %}
                 <td class="col-cargo col-cargo-{{ cargo.id }}">
