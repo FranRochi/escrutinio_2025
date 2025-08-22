@@ -1,0 +1,46 @@
+{# panel_resultados.html #}
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resultados Completos{% endblock %}
+{% block body_class %}resultados-page{% endblock %}
+
+{% block content %}
+  <section class="card card-results">
+    <div class="card-head">
+      <h3>Resultados completos</h3>
+      <div class="meta">
+        <span class="kpi">
+          Total mesas escrutadas: <strong id="kpiMesasFull">—</strong>
+        </span>
+      </div>
+    </div>
+
+    <table id="tablaFull" class="table table-sm">
+      <thead>
+        <tr class="thead-group">
+          <th rowspan="2" class="th-left">Partido</th>
+          <th colspan="2">Diputados</th>
+          <th colspan="2">Concejales</th>
+        </tr>
+        <tr class="thead-sub">
+          <th>Votos</th><th>%</th>
+          <th>Votos</th><th>%</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="actions-row">
+      <a href="{% url 'panel_dashboard' %}" class="btn-small">&laquo; Volver al panel</a>
+      <div class="right">
+        <a href="/export/summary.xlsx?cargo=DIPUTADOS" class="btn-small">Excel Diputados</a>
+        <a href="/export/summary.xlsx?cargo=CONCEJALES" class="btn-small">Excel Concejales</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/resultados.js' %}?v=4"></script>
+{% endblock %}

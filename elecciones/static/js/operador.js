@@ -109,6 +109,7 @@ function updateMesaOptionAppearance(mesaId, escrutada = true) {
 
 let IS_PAINTING = false;
 let IS_SAVING = false; //candado para evitar doble submit
+let LAST_CHANGED_INPUT = null;
 
 function getActiveRoot() {
   const desk = document.querySelector('.only-landscape');
@@ -248,21 +249,22 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!input.placeholder) input.placeholder = '000';
 
       input.addEventListener('input', () => {
+        LAST_CHANGED_INPUT = input; // ⬅️ nuevo
         const n = sanitizeVoteForInputs(input.value);
         input.value = digitsOnly(String(n)).slice(0, 3);
-        // Aplica la regla de dominancia por cargo (si alguien iguala E, los demás a 000)
         enforceCapAndDominanceByCargo();
         enforceMaxSumByCargo();
-        enforceGlobalSumByCargo(true)
+        enforceGlobalSumByCargo(true);
         calcularTotales();
       });
 
       input.addEventListener('blur', () => {
+        LAST_CHANGED_INPUT = input; // ⬅️ nuevo
         const n = sanitizeVoteForInputs(input.value);
         input.value = format3(n);
         enforceCapAndDominanceByCargo();
         enforceMaxSumByCargo();
-        enforceGlobalSumByCargo()
+        enforceGlobalSumByCargo();
         calcularTotales();
       });
     });
@@ -449,22 +451,21 @@ document.addEventListener("DOMContentLoaded", function () {
       cargos.get(cId).push(inp);
     });
 
-    cargos.forEach((inputs) => {
+    cargos.forEach((inputs, cId) => {
       let sum = 0;
-      const valores = inputs.map(inp => getVoteValue(inp));
-      valores.forEach(v => sum += v);
+      inputs.forEach(inp => { sum += getVoteValue(inp); });
 
       if (sum > CAP) {
-        let overshoot = sum - CAP;
-        for (let i = inputs.length - 1; i >= 0 && overshoot > 0; i--) {
-          const inp = inputs[i];
-          const n = getVoteValue(inp);
-          if (n > 0) {
-            const quitar = Math.min(n, overshoot);
-            const nuevo = n - quitar;
-            inp.value = nuevo ? format3(nuevo) : "";
-            overshoot -= quitar;
+        // Si hay exceso, el "culpable" es el último input editado (si pertenece a este cargo)
+        let target = (LAST_CHANGED_INPUT && String(LAST_CHANGED_INPUT.dataset.cargo || "") === cId) ? LAST_CHANGED_INPUT : null;
+        if (!target) {
+          // fallback: el último de la lista con valor > 0
+          for (let i = inputs.length - 1; i >= 0; i--) {
+            if (getVoteValue(inputs[i]) > 0) { target = inputs[i]; break; }
           }
+        }
+        if (target) {
+          target.value = ""; // “000” (quedará 000 en blur)
         }
       }
     });
@@ -493,34 +494,31 @@ document.addEventListener("DOMContentLoaded", function () {
       inputs.forEach(inp => { sum += getVoteValue(inp); });
 
       if (sum > CAP) {
-        let overshoot = sum - CAP;
-        for (let i = inputs.length - 1; i >= 0 && overshoot > 0; i--) {
-          const inp = inputs[i];
-          const n = getVoteValue(inp);
-          if (n > 0) {
-            const quitar = Math.min(n, overshoot);
-            const nuevo = n - quitar;
-            inp.value = nuevo ? format3(nuevo) : "";
-            overshoot -= quitar;
+        // Exceso: invalidar el último input editado de este cargo
+        let target = (LAST_CHANGED_INPUT && String(LAST_CHANGED_INPUT.dataset.cargo || "") === cId) ? LAST_CHANGED_INPUT : null;
+        if (!target) {
+          for (let i = inputs.length - 1; i >= 0; i--) {
+            if (getVoteValue(inputs[i]) > 0) { target = inputs[i]; break; }
           }
         }
+        if (target) target.value = "";
       }
 
-      // recalcular tras ajustes
+      // Recalcular tras posibles anulaciones
       let total = 0;
       inputs.forEach(inp => { total += getVoteValue(inp); });
 
-      // notificación respetando "silent"
       if (total === CAP) {
         if (!silent && !notifiedAtCap.has(cId)) {
           showNotification("⚠️ Se alcanzó la cantidad de electores que han votado");
           notifiedAtCap.add(cId);
         }
       } else {
-        if (notifiedAtCap.has(cId)) notifiedAtCap.delete(cId);
+        notifiedAtCap.delete(cId);
       }
     });
   }
+
 
   calcularTotales();
 });
@@ -723,3 +721,9 @@ function enviarVotos() {
     IS_SAVING = false;
   });
 }
+// Al final de operador.js
+window.addEventListener('pagehide', () => {
+  try { localStorage.clear(); } catch(e){}
+  try { sessionStorage.clear(); } catch(e){}
+});
+

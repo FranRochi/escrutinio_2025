@@ -3,36 +3,93 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Sistema de Escrutinio</title>
-
-  <!-- 👇 Imprescindible para que funcionen los @media en móviles -->
+  <title>{% block title %}Sistema de Escrutinio{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-
-  <!-- (opcional) color barra de estado en móviles -->
   <meta name="theme-color" content="#31b8f0">
 
-  <!-- Asegurate que el nombre coincida: ¿styles.css o estilos.css? -->
+  <!-- Evitar cacheo del HTML en autenticados -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-  <header>
-    <h1>Sistema de Escrutinio</h1>
+
+<!-- Marcamos clase por rol. Si el usuario es operador, agregamos 'operador' al body-->
+
+<body class="{% if request.user.is_authenticated and request.user.role == 'operador' %}operador{% endif %} {% block body_class %}{% endblock %}">
+  <header class="container">
+    <nav class="header-nav">
+      <div><strong>Sistema de Escrutinio</strong></div>
+      <div class="links">
+        {# Mostrar enlaces SOLO si NO es operador #}
+        {% if request.user.is_authenticated and request.user.role != 'operador' %}
+          <a href="{% url 'panel_dashboard' %}" {% if request.resolver_match.url_name == 'panel_dashboard' %}aria-current="page"{% endif %}>Panel</a>
+          <a href="{% url 'panel_graficos' %}" {% if request.resolver_match.url_name == 'panel_graficos' %}aria-current="page"{% endif %}>Gráficos</a>
+          <a href="{% url 'panel_resultados' %}" {% if request.resolver_match.url_name == 'panel_resultados' %}aria-current="page"{% endif %}>Resultados</a>
+        {% endif %}
+        {# Botón de cierre de sesión siempre visible a autenticados #}
+        {% if request.user.is_authenticated %}
+          <a id="btn-logout" href="{% url 'logout' %}">Cerrar sesión</a>
+        {% endif %}
+      </div>
+    </nav>
   </header>
 
-  <main>
+  <main class="container">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Evitá errores cuando la variable no existe en ciertas vistas -->
+  {% if request.user.is_authenticated and request.user.role == 'operador' %}
   <script>
-    window.votosData = {% if votos_por_partido_y_cargo %}{{ votos_por_partido_y_cargo|safe }}{% else %}{}{% endif %};
+    // Limpieza al "salir" (cambiar página, cerrar pestaña, ir atrás, etc.)
+    (function(){
+      async function clearLocalStuff(){
+        try { localStorage.clear(); } catch(e){}
+        try { sessionStorage.clear(); } catch(e){}
+        try {
+          if (window.indexedDB) {
+            const dbs = await (indexedDB.databases ? indexedDB.databases() : Promise.resolve([]));
+            for (const d of dbs) {
+              try {
+                await new Promise((ok,ko)=>{ const r = indexedDB.deleteDatabase(d.name); r.onsuccess=ok; r.onerror=ko; r.onblocked=ok; });
+              } catch(e){}
+            }
+          }
+        } catch(e){}
+        try {
+          if (window.caches?.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+        } catch(e){}
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+          }
+        } catch(e){}
+      }
+
+      // Al intentar abandonar la página
+      window.addEventListener('pagehide', clearLocalStuff);
+      window.addEventListener('beforeunload', clearLocalStuff);
+
+      // Si querés forzar limpieza adicional al cerrar sesión manualmente,
+      // podés interceptar el click y dejar que el servidor redirija luego:
+      const btnLogout = document.getElementById('btn-logout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', async (ev) => {
+          // No prevenimos la navegación: el servidor devolverá la página de logout con redirección
+          // pero iniciamos limpieza inmediata del lado cliente
+          try { await clearLocalStuff(); } catch(e){}
+        });
+      }
+    })();
   </script>
+  {% endif %}
 
-  <!-- Carga de scripts: mejor “defer” y por página cuando sea posible -->
-  <script src="{% static 'js/operador.js' %}" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-  <script src="{% static 'js/panelista.js' %}" defer></script>
-
-  {% block extra_js %}{% endblock %}
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>

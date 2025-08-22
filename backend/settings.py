@@ -3,7 +3,18 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# === Logs ===
+LOG_DIR = BASE_DIR / "logs"
+try:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    # En entornos sin permisos, seguimos sin romper el arranque
+    pass
+
 
 # === Seguridad / entorno ===
 SECRET_KEY = os.getenv('SECRET_KEY', 'changeme-in-env')   # ponelo en .env
@@ -35,16 +46,22 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # Si no tenés Nginx y querés servir estáticos con Django, podés activar WhiteNoise:
-    # 'whitenoise.middleware.WhiteNoiseMiddleware',
+    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # opcional si servís estáticos
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    # NEW: presencia de usuarios
+    "elecciones.middleware.LastSeenMiddleware",
+
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # Tu auditoría (paths sensibles)
     "elecciones.middleware.AuditMiddleware",
 ]
+
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -134,15 +151,15 @@ LOGGING = {
     "handlers": {
         "app_file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOG_DIR, "app.log"),
-            "maxBytes": 5 * 1024 * 1024,  # 5MB
+            "filename": str(BASE_DIR / "logs" / "app.log"),
+            "maxBytes": 5 * 1024 * 1024,
             "backupCount": 5,
             "encoding": "utf-8",
             "formatter": "verbose",
         },
         "audit_file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOG_DIR, "audit.log"),
+            "filename": str(BASE_DIR / "logs" / "audit.log"),
             "maxBytes": 5 * 1024 * 1024,
             "backupCount": 10,
             "encoding": "utf-8",
@@ -155,7 +172,6 @@ LOGGING = {
     },
     "loggers": {
         "django": {"handlers": ["console", "app_file"], "level": "INFO"},
-        # para tus eventos de negocio:
         "audit": {"handlers": ["audit_file"], "level": "INFO", "propagate": False},
         "app": {"handlers": ["app_file"], "level": "INFO"},
     },

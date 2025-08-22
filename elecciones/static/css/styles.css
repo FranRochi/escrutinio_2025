@@ -6,7 +6,7 @@
 html, body { height: auto; overflow-y: auto; }
 
 body {
-  background-image: url('/static/img/fondo3.jpg');
+  background: #f2f3f5 ;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -289,25 +289,6 @@ td[style*="background: #eee"] { background-color: #f4f4f4 !important; color: #99
 .only-mobile { display: none; }
 .only-landscape { display: block; }
 
-/* ===============================
-   PANELISTA
-   =============================== */
-.info-superior {
-  display: flex; justify-content: space-between; align-items: center;
-  background-color: #31b8f0; color: #fff;
-  padding: 15px 20px; border-radius: 8px; margin-bottom: 2rem;
-  font-size: 1.2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-.fecha-hora { font-weight: bold; }
-.porcentaje-escrutadas { font-size: 2rem; font-weight: bold; }
-.porcentaje-escrutadas span { font-size: 2.5rem; color: #fff; }
-#graficoVotos { width: 100%; max-width: 800px; height: 400px; margin: 0 auto; display: block; }
-canvas { display: block; margin: 0 auto; }
-.titulo-cargo { text-align: center; font-size: 1.5rem; margin: 1rem 0; color: #333; }
-.tabla-resumen { width: 100%; border-collapse: collapse; margin-bottom: 2rem; background: #fff; border: 1px solid #31b8f0; }
-.tabla-resumen th, .tabla-resumen td { border: 1px solid #31b8f0; padding: 8px; text-align: center; }
-.tabla-resumen th { background: #31b8f0; color: #fff; font-weight: bold; }
-.tabla-resumen tbody tr:nth-child(even) { background-color: #f9f9f9; }
 
 /* ===============================
    LOGIN (solo login.html)
@@ -480,3 +461,562 @@ body.login-page {
     max-width: 96px; min-width: 84px; font-size: 12.5px;
   }
 }
+/* ===============================
+   PANELISTA / PANEL DASHBOARD (unificado)
+   =============================== */
+
+/* Tabs */
+.tab { cursor: pointer; padding: .4rem .8rem; border-bottom: 2px solid transparent; }
+.tab.active { border-color: #0ea5e9; font-weight: 600; }
+
+/* Navbar simple (si ya existe arriba, podés omitir esta parte) */
+.header-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.header-nav .links { display: flex; gap: .8rem; align-items: center; }
+.header-nav a[aria-current="page"] { font-weight: 600; text-decoration: underline; }
+
+/* ===== Tema oscuro del panel ===== */
+.panel-page {
+  background: #0b1220 !important;     /* azul noche */
+  background-image: none !important;
+  color: #e5e7eb;                      /* texto claro */
+}
+
+/* Layout principal con áreas: controls arriba, después 3 columnas, subcomandos abajo a full */
+.panel-page main.container {
+  max-width: 1600px;
+  margin: .75rem auto 1.25rem;
+  padding: 0 1rem;
+  gap: .06rem;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+
+  display: grid;
+  grid-template-columns: 1.2fr 1fr .8fr;
+  grid-template-areas:
+    "controls controls controls"
+    "results  charts   users"
+    "subcmd   subcmd   subcmd";
+  grid-auto-rows: minmax(120px, auto);
+  gap: 1rem;
+  align-items: start;
+}
+
+/* Controles superiores */
+.panel-page .controls {
+  grid-column: 1 / -1;
+  display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+  margin: .25rem 0 .5rem;
+}
+.panel-page .controls a,
+.panel-page .controls button,
+.panel-page .controls select { font-weight: 600; }
+.panel-page .controls a { color: #7dd3fc; }
+.panel-page .controls a:hover { color: #38bdf8; text-decoration: underline; }
+.panel-page .status { font-size: .9rem; opacity: .75; color: #cbd5e1; }
+
+/* Tarjetas sueltas */
+.panel-page .card {
+  background: #0f172a;                 /* slate-900 */
+  border: 1px solid #1f2a3a;
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  color: #e5e7eb;
+}
+.panel-page .card h3 {
+  margin: .2rem 0 1rem;
+  color: #e2e8f0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+/* ===== Tabla Resultados (oscuro uniforme + “reflejo” %) ===== */
+.panel-page .table-sm {
+  width: 100%;
+  border-collapse: separate;     /* permite sticky */
+  border-spacing: 0;
+  font-size: .95rem;
+  table-layout: fixed;
+}
+.panel-page .table-sm th,
+.panel-page .table-sm td {
+  border: 1px solid #233044;
+  padding: .6rem .7rem;
+  color: #cbd5e1;
+}
+
+/* Fondo TOTALMENTE oscuro en todas las filas (sin zebra) */
+.panel-page .table-sm tbody tr { background: #0b1424; }
+.panel-page .table-sm tbody tr:hover { background: #0e1a2d; }
+
+/* Encabezados pegados y con acento celeste */
+.panel-page .thead-group th {
+  position: sticky; top: 0; z-index: 2;
+  text-align: center;
+  background: #0b1220;
+  color: #93c5fd;
+  border-bottom: 2px solid #31b8f0;
+}
+.panel-page .thead-sub th {
+  position: sticky; top: 38px; z-index: 2;
+  background: #0b1220;
+  color: #a8c5ff;
+  font-weight: 700;
+  font-size: .9rem;
+  text-align: center;
+}
+.panel-page .th-left { min-width: 240px; text-align: left; }
+
+/* Números alineados y “reflejo” celeste en % */
+.panel-page td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.panel-page td.pct {
+  text-align: right; font-variant-numeric: tabular-nums;
+  font-weight: 700; color: #e5f4ff;
+  background-image: linear-gradient(90deg, rgba(49,184,240,.22), rgba(49,184,240,0)); /* <-- reflejo */
+  background-size: var(--pct, 0%) 100%;
+  background-repeat: no-repeat;
+  border-left-color: #27445b;
+}
+
+/* ===== Gráfico ===== */
+.card-charts { min-height: 420px; display: flex; flex-direction: column; }
+#chartWrap { flex: 1 1 auto; position: relative; }
+#chartWrap canvas { position: absolute; inset: 0; }
+
+/* ===== Usuarios (luz tipo máquina) ===== */
+.panel-page .users-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; font-size: .95rem; }
+.panel-page .users-list li { display: flex; align-items: center; gap: .45rem; }
+.panel-page .online-dot { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 10px rgba(25,209,79,.8); display: inline-block; }
+.panel-page .online  { background: #19d14f; }
+.panel-page .offline { background: #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,.6); }
+.panel-page .kpis { margin-top: 1rem; color: #cbd5e1; }
+
+/* Responsive: apilar en 1 columna */
+@media (max-width: 1100px) {
+  .panel-page main.container { grid-template-columns: 1fr; }
+  .card-results, .card-charts, .card-users { grid-column: 1 / -1; }
+}
+
+/* ===== Controles / acciones ===== */
+.btn-refresh{
+  position: relative;
+  display: inline-flex; align-items: center; gap: .55rem;
+  padding: .55rem .9rem;
+  border: 1px solid #1f2a3a;
+  border-radius: 10px;
+  background: linear-gradient(180deg,#31b8f0 0%,#199ed9 100%);
+  color: #062333; font-weight: 800; letter-spacing: .2px;
+  box-shadow: 0 6px 14px rgba(25,158,217,.25);
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .15s ease, filter .15s ease;
+}
+.btn-refresh:hover{ filter: brightness(1.03); box-shadow: 0 8px 16px rgba(25,158,217,.32); }
+.btn-refresh:active{ transform: translateY(1px); }
+.btn-refresh .btn-icon{
+  width: 16px; height: 16px; border: 2px solid #07324a; border-top-color: transparent;
+  border-radius: 50%; display: inline-block;
+  transition: opacity .15s ease;
+}
+.btn-refresh.is-busy .btn-icon{ animation: spin 0.8s linear infinite; border-color:#07324a; border-top-color: transparent; }
+
+.select-compact{
+  background:#0f172a; color:#e5e7eb; border:1px solid #1f2a3a; border-radius:10px;
+  padding:.5rem .65rem; outline:none;
+}
+.link-action{ color:#7dd3fc; font-weight:700; }
+.link-action:hover{ color:#38bdf8; text-decoration:underline; }
+
+/* ===== Card Results: header con KPI a la derecha ===== */
+.card-results .card-head{
+  display:flex; align-items:center; justify-content:space-between; gap:.8rem; margin-bottom:.6rem;
+}
+.card-results .meta .kpi{
+  background:#0b1424; border:1px solid #233044; padding:.45rem .6rem; border-radius:10px;
+  color:#cbd5e1; font-weight:700;
+}
+.card-results .meta .kpi strong{ color:#e5f4ff; }
+
+/* KPI con “reflejo” celeste como en la tabla */
+.kpi-bar {
+  display: inline-block;
+  padding: 0 .25rem;
+  border-radius: 4px;
+  background-image: linear-gradient(90deg, rgba(49,184,240,.22), rgba(49,184,240,0));
+  background-size: var(--pct, 0%) 100%;
+  background-repeat: no-repeat;
+}
+
+/* Botón Actualizar con spinner */
+.btn-refresh.is-busy .btn-label { opacity: .7; }
+.btn-refresh.is-busy .btn-icon {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(148,163,184,.35);
+  border-top-color: #31b8f0; display:inline-block; margin-right:.4rem;
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Subcomandos (lista + barras de avance) ===== */
+/* ===== Avance por Subcomando ===== */
+.card-subcmd .card-head { margin-bottom: .6rem; }
+.subcmd-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
+
+.subcmd-item {
+  background: #0b1424;
+  border: 1px solid #233044;
+  border-radius: 12px;
+  padding: .6rem .75rem;
+}
+
+.subcmd-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .8rem; margin-bottom: .35rem; color: #e2e8f0;
+}
+.subcmd-name { font-weight: 800; letter-spacing: .2px; }
+.subcmd-val  { color: #a3b5d1; font-weight: 700; }
+
+.subcmd-bar {
+  position: relative; height: 10px; border-radius: 999px; overflow: hidden;
+  background: #0e1a2d; border: 1px solid #233044;
+}
+.subcmd-fill {
+  position: absolute; inset: 0 auto 0 0; width: var(--pct, 0%);
+  background-image: linear-gradient(90deg, rgba(49,184,240,.35), rgba(49,184,240,0.08));
+  box-shadow: inset 0 0 0 1px rgba(49,184,240,.25);
+}
+.subcmd-pct {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-size: .8rem; font-weight: 800; color: #e5f4ff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+}
+
+/* En pantallas chicas, que no se corte raro */
+@media (max-width: 1100px) {
+  .subcmd-row { font-size:.9rem; }
+}
+
+/* ==== Panel: ajustes finos de layout y tamaños ==== */
+
+/* 1) Cards un poco más compactas */
+.panel-page .card {
+  padding: .75rem .9rem;      /* antes 1rem 1.1rem */
+  border-radius: 10px;        /* antes 14px */
+}
+.panel-page .card h3 {
+  margin: .1rem 0 .7rem;
+  font-size: 1.05rem;         /* antes 1.15rem */
+}
+
+/* Mapeo de áreas (asigna las cards actuales a las áreas) */
+.card-results { grid-area: results; }
+.card-charts  { grid-area: charts;  }
+.card-users   { grid-area: users;   }
+.card-subcmd  { grid-area: subcmd;  }
+
+/* 3) Subcomandos: ocupar parte inferior y ganar altura útil */
+.card-subcmd {
+  min-height: 28vh;                /* altura mínima para respirar */
+  display: flex;
+  flex-direction: column;
+}
+.card-subcmd .card-head { margin-bottom: .5rem; }
+
+/* La lista pasa a grid responsive para usar todo el ancho */
+.subcmd-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: .55rem .7rem;
+  overflow: auto;                 /* si hay muchos, que scrollee dentro del card */
+  flex: 1 1 auto;
+  min-height: 0;                  /* evita overflow del flex container */
+}
+
+/* Ítem más compacto */
+.subcmd-item {
+  padding: .55rem .65rem;
+  border-radius: 10px;
+}
+
+/* 4) Barra de avance más gruesa y legible */
+.subcmd-bar {
+  height: 18px;                   /* antes 10px */
+  border-radius: 999px;
+  border: 1px solid #233044;
+  background: linear-gradient(180deg, #0e1a2d, #0a1524);
+}
+.subcmd-fill {
+  box-shadow: inset 0 0 0 1px rgba(49,184,240,.35);
+  background-image: linear-gradient(90deg, rgba(49,184,240,.55), rgba(49,184,240,.12));
+}
+.subcmd-pct {
+  right: 10px;
+  font-size: .82rem;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+
+/* 5) Usuarios conectados con scroll interno */
+.card-users {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;              /* ajustá a gusto o usa calc(100vh - X) */
+}
+.card-users h3 {
+  position: sticky; top: 0;
+  background: #0f172a;           /* tapa el scroll detrás */
+  padding-bottom: .3rem; margin-bottom: .4rem;
+  z-index: 1;
+}
+.panel-page .users-list {
+  overflow-y: auto;               /* <-- scroll interno */
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: .25rem;          /* espacio para el scrollbar */
+}
+.panel-page .users-list li {
+  padding: .15rem 0;
+}
+
+/* 6) Tabla y gráfico un toque más condensados */
+.panel-page .table-sm { font-size: .9rem; }
+.panel-page .table-sm th, .panel-page .table-sm td { padding: .5rem .55rem; }
+.card-charts { min-height: 360px; }  /* antes 420px */
+
+/* Mapeo de áreas */
+.panel-page .controls { grid-area: controls; }
+.card-results { grid-area: results; }
+.card-charts  { grid-area: charts;  }
+.card-users   { grid-area: users;   }
+.card-subcmd  { grid-area: subcmd;  }
+
+/* 7) Responsivo: en ≤1100px seguimos apilando, subcmd queda abajo a ancho completo */
+
+@media (max-width: 1100px) {
+  .panel-page main.container {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "controls"
+      "results"
+      "charts"
+      "users"
+      "subcmd";
+  }
+  .card-subcmd { min-height: 24vh; }
+}
+
+/* ===============================
+   Vista de gráficos (onepage)
+   =============================== */
+.graficos-page {
+  background: #0b1220; /* mismo tema oscuro */
+  color: #e5e7eb;
+}
+
+.graficos-page main.container {
+  max-width: 1400px;
+  margin: 1rem auto;
+  padding: 0 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.graficos-page .card.fullchart {
+  width: 100%;
+  height: 40vh;
+  background: transparent !important; /* fuerza fondo transparente */
+  border: none;                        /* saca borde gris si no lo querés */
+  box-shadow: none !important;         /* limpia sombra */
+  display: flex;
+  flex-direction: column;
+}
+
+.graficos-page main {
+  background: transparent !important;  /* quita el fondo blanco */
+  box-shadow: none !important;
+  margin: 1rem auto;                   /* más compacto */
+  padding: 1rem;                       /* menos padding */
+  border-radius: 0 !important;         /* que no quede caja redondeada */
+}
+
+.graficos-page .card.fullchart h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.graficos-page .card.fullchart .chartWrap {
+  flex: 1 1 auto;
+  position: relative;
+}
+
+.graficos-page .card.fullchart canvas {
+  position: absolute;
+  inset: 0;
+}
+
+/* ===============================
+   RESULTADOS (onepage oscuro)
+   =============================== */
+.resultados-page {
+  background: #0b1220; color: #e5e7eb;
+}
+.resultados-page main {
+  /* quita el fondo blanco del main global */
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 1rem auto;
+  padding: 1rem;
+  max-width: 1400px;        /* más ancho que el panel */
+  border-radius: 0 !important;
+}
+.resultados-page .card {
+  background: #0f172a;
+  border: 1px solid #1f2a3a;
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
+.resultados-page .card h3{
+  margin: .1rem 0 .7rem;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: .2px;
+  color: #e2e8f0;
+}
+
+/* Chip KPI más vistoso */
+.resultados-page .card .meta .kpi{
+  display:inline-block;
+  background:#0b1424;
+  border:1px solid #233044;
+  border-radius:12px;
+  padding:.5rem .7rem;
+  color:#cbd5e1; font-weight:700;
+  box-shadow: inset 0 0 0 1px rgba(49,184,240,.08);
+}
+.resultados-page .kpi-bar{
+  background-image: linear-gradient(90deg, rgba(49,184,240,.25), rgba(49,184,240,0));
+  background-size: var(--pct, 0%) 100%;
+  background-repeat: no-repeat;
+}
+
+/* Tabla oscura compacta + encabezados pegados */
+.resultados-page .table-sm{
+  width:100%;
+  border-collapse: separate;
+  border-spacing:0;
+  table-layout: fixed;
+  font-size:.95rem;
+}
+.resultados-page .table-sm th,
+.resultados-page .table-sm td{
+  border:1px solid #233044;
+  padding:.6rem .7rem;
+  color:#cbd5e1;
+}
+.resultados-page .table-sm tbody tr{ background:#0b1424; }
+.resultados-page .table-sm tbody tr:hover{ background:#0e1a2d; }
+
+/* Encabezados sticky */
+.resultados-page .thead-group th{
+  position: sticky; top: 0; z-index: 3;
+  background:#0b1220; color:#93c5fd;
+  border-bottom:2px solid #31b8f0;
+}
+.resultados-page .thead-sub th{
+  position: sticky; top: 44px; z-index: 2;  /* ~alto fila superior */
+  background:#0b1220; color:#a8c5ff; font-weight:800;
+}
+
+/* Primera columna más ancha y sticky en móvil grande */
+.resultados-page .th-left{ min-width:260px; text-align:left; }
+
+/* Porcentaje con “reflejo” */
+.resultados-page td.num{ text-align:right; font-variant-numeric: tabular-nums; }
+.resultados-page td.pct{
+  text-align:right; font-variant-numeric: tabular-nums;
+  font-weight:800; color:#e5f4ff;
+  background-image: linear-gradient(90deg, rgba(49,184,240,.22), rgba(49,184,240,0));
+  background-size: var(--pct, 0%) 100%;
+  background-repeat:no-repeat;
+  border-left-color:#27445b;
+}
+
+/* Fila de acciones al pie */
+.resultados-page .actions-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:.6rem; margin-top:.75rem;
+}
+.resultados-page .btn-small{
+  display:inline-block; padding:.45rem .7rem; border-radius:10px;
+  background:#0e1a2d; border:1px solid #233044; color:#7dd3fc; font-weight:800;
+}
+.resultados-page .btn-small:hover{ color:#38bdf8; background:#0b1424; }
+
+/* Responsive */
+@media (max-width: 920px){
+  .resultados-page main{ padding:.75rem; }
+  .resultados-page .th-left{ min-width:200px; }
+  .resultados-page .table-sm th, .resultados-page .table-sm td{ padding:.5rem .55rem; font-size:.9rem; }
+}
+@media (max-width: 680px){
+  /* primera columna fija a la izquierda para no perder el partido al scrollear horizontal */
+  .resultados-page .table-sm{ display:block; overflow-x:auto; }
+  .resultados-page .table-sm .th-left{
+    position: sticky; left: 0; z-index: 4; background:#0b1424;
+  }
+}
+
+/* ===== NAVBAR: links blancos y activo claro ===== */
+.header-nav {
+  gap: 1rem;
+}
+.header-nav .links a {
+  color: #ffffff;                 /* blanco */
+  font-weight: 800;
+  letter-spacing: .2px;
+  text-decoration: none;
+  opacity: .92;
+  padding: .25rem .45rem;         /* un toque de padding para hit-area */
+  border-radius: 8px;
+}
+.header-nav .links a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+.header-nav a[aria-current="page"] {
+  color: #0b1220;                 /* texto oscuro */
+  background: #ffffff;            /* pastilla blanca para el activo */
+  text-decoration: none;          /* sin subrayado en activo */
+}
+
+/* Cabecera un poco más compacta en el panel */
+.panel-page header {
+  padding: 10px 14px;             /* antes 15px */
+}
+
+/* ===== PANEL: reducir espacio entre controles y cards ===== */
+.panel-page main.container {
+  margin: .5rem auto .9rem;       /* antes .75rem / 1.25rem */
+  gap: .75rem;                    /* antes 1rem */
+}
+
+/* Controles: menos margen inferior */
+.panel-page .controls {
+  margin: .15rem 0 .25rem;        /* antes .25rem 0 .5rem */
+}
+
+/* Cards un toque más compactas aún */
+.panel-page .card {
+  padding: .65rem .8rem;          /* antes .75rem .9rem */
+}
+
+/* Título card un pelín más chico */
+.panel-page .card h3 {
+  margin: .05rem 0 .55rem;
+  font-size: 1.02rem;             /* antes 1.05rem */
+}
+

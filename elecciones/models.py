@@ -1,6 +1,7 @@
 # models.py
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone   # NEW
 
 # ----------------------------
 # PADRÓN / GEO
@@ -18,7 +19,6 @@ class Subcomando(models.Model):
 
 class Escuela(models.Model):
     nombre_escuela = models.CharField(max_length=255)
-    # Puede no tener subcomando cargado (SET NULL en la BD)
     subcomando = models.ForeignKey(
         Subcomando,
         on_delete=models.SET_NULL,
@@ -36,7 +36,7 @@ class Escuela(models.Model):
 
 
 class Mesa(models.Model):
-    numero_mesa = models.IntegerField(unique=True)
+    numero_mesa = models.IntegerField(unique=True, db_index=True)  # CHANGE: index
     escuela = models.ForeignKey(
         Escuela,
         on_delete=models.CASCADE,
@@ -71,15 +71,14 @@ class Partido(models.Model):
     numero_lista = models.IntegerField(primary_key=True)
     nombre_partido = models.CharField(max_length=255)
     sigla = models.CharField(max_length=10)
-    orden = models.IntegerField(null=True, blank=True, db_index=True, db_column='orden')  # <<<<
+    orden = models.IntegerField(null=True, blank=True, db_index=True, db_column='orden')
 
     class Meta:
-        # Nota: si hay NULLs en orden, se listan primero; podés usar la Opción B para NULLS LAST
+        # OJO: los NULL en 'orden' van primero en ASC; si querés “NULLS LAST” lo resolvemos en la query.
         ordering = ['orden', 'numero_lista']
 
     def __str__(self):
         return f"{self.nombre_partido} ({self.sigla}) - N° Lista {self.numero_lista}"
-
 
 
 class CargoPostulacion(models.Model):
@@ -95,6 +94,11 @@ class PartidoPostulacion(models.Model):
     partido = models.ForeignKey(Partido, on_delete=models.CASCADE, related_name='partidos_postulados')
     cargo_postulacion = models.ForeignKey(CargoPostulacion, on_delete=models.CASCADE, related_name='cargos_postulados')
 
+    class Meta:
+        indexes = [  # NEW: índice compuesto para sumar más rápido por cargo
+            models.Index(fields=['cargo_postulacion', 'partido']),
+        ]
+
     def __str__(self):
         return f"{self.partido.nombre_partido} se postula a {self.cargo_postulacion.nombre_postulacion}"
 
@@ -109,12 +113,17 @@ class VotoMesaCargo(models.Model):
 
     class Meta:
         unique_together = ('mesa', 'partido_postulacion')
+        indexes = [  # NEW: índices que usan tus agregaciones
+            models.Index(fields=['partido_postulacion']),
+            models.Index(fields=['mesa']),
+        ]
 
     def __str__(self):
         return f"{self.votos} votos a {self.partido_postulacion} en Mesa {self.mesa.numero_mesa}"
 
 
 class VotoMesaEspecial(models.Model):
+    # Sugerencia: alinearlo con lo que usa el front/validación
     TIPO_VOTO = [
         ('blanco', 'En blanco'),
         ('impugnado', 'Impugnado'),
@@ -124,14 +133,18 @@ class VotoMesaEspecial(models.Model):
         CargoPostulacion,
         on_delete=models.CASCADE,
         related_name="votos_especiales",
-        null=True,   # <- AGREGAR
-        blank=True   # <- opcional, ayuda en admin/forms
+        null=True,
+        blank=True
     )
     tipo = models.CharField(max_length=20, choices=TIPO_VOTO)
     votos = models.PositiveIntegerField()
 
     class Meta:
         unique_together = ('mesa', 'cargo_postulacion', 'tipo')
+        indexes = [  # NEW
+            models.Index(fields=['cargo_postulacion']),
+            models.Index(fields=['mesa']),
+        ]
 
 
 class ResumenMesa(models.Model):
@@ -164,8 +177,18 @@ class User(AbstractUser):
         blank=True,
     )
 
+    # NEW: para estado online
+    last_seen = models.DateTimeField(null=True, blank=True, db_index=True)
+
     @property
     def mesas_visibles(self):
         if self.escuela_id:
             return Mesa.objects.filter(escuela_id=self.escuela_id)
         return Mesa.objects.none()
+
+    @property
+    def online(self):  # útil en admin o plantillas
+        if not self.last_seen:
+            return False
+        # 2 minutos de tolerancia
+        return (timezone.now() - self.last_seen).total_seconds() <= 120

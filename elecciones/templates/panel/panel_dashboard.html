@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Resultados{% endblock %}
+{% block body_class %}panel-page{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+
+  <!-- Controles arriba (sueltos) -->
+  <div class="controls">
+    <button id="btnRefresh" class="btn-refresh">
+      <span class="btn-icon" aria-hidden="true"></span>
+      <span class="btn-label">Actualizar</span>
+    </button>
+
+    <select id="refreshEvery" class="select-compact">
+      <option value="30">Auto: 30 s</option>
+      <option value="60" selected>Auto: 1 min</option>
+      <option value="0">Auto: apagado</option>
+    </select>
+
+    <a id="btnDescargarDip" href="#" role="button" class="link-action">Excel Diputados</a>
+    <a id="btnDescargarCon" href="#" role="button" class="link-action">Excel Concejales</a>
+
+    <span id="status" class="status"></span>
+  </div>
+
+  <!-- Sección 1: Tabla combinada -->
+  <section class="card card-results">
+    <div class="card-head">
+      <h3>Resultados La Plata</h3>
+      <div class="meta">
+        <span class="kpi">
+          Total mesas escrutadas: <strong id="kpiMesas">—</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- SOLO TOP 4 -->
+    <table id="tabla" class="table table-sm" data-limit="4">
+      <thead>
+        <tr class="thead-group">
+          <th rowspan="2" class="th-left">Partido</th>
+          <th colspan="2">Diputados</th>
+          <th colspan="2">Concejales</th>
+        </tr>
+        <tr class="thead-sub">
+          <th>Votos</th><th>%</th>
+          <th>Votos</th><th>%</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- NUEVO: link a Resultados completos -->
+    <div style="margin-top:.6rem">
+      <a href="{% url 'panel_resultados' %}" class="btn-small">Ver todos &raquo;</a>
+    </div>
+  </section>
+
+
+  <!-- Sección 2: Gráficos -->
+  <section class="card card-charts">
+    <h3>Gráficos</h3>
+    <div id="chartWrap">
+      <canvas id="grafico"></canvas>
+    </div>
+    <a href="/panel/graficos" class="btn-small">Ver todos &raquo;</a>
+  </section>
+
+  <!-- Sección 3: Usuarios -->
+  <aside class="card card-users">
+    <h3>Usuarios conectados</h3>
+    <ul id="users" class="users-list"></ul>
+  </aside>
+
+  <!-- Sección 4: Avance por Subcomando -->
+  <section class="card card-subcmd">
+    <div class="card-head">
+      <h3>Avance por subcomando</h3>
+    </div>
+    <ul id="subcmdList" class="subcmd-list"></ul>
+  </section>
+
+
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/panelista.js' %}"></script>
+{% endblock %}

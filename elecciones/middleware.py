@@ -4,6 +4,8 @@ import json
 import logging
 import time
 from django.utils.deprecation import MiddlewareMixin
+from django.utils import timezone
+from django.db.utils import OperationalError, ProgrammingError  # ⬅️ NEW
 
 audit = logging.getLogger("audit")
 
@@ -64,3 +66,27 @@ class AuditMiddleware(MiddlewareMixin):
                     audit.info(f"RES {request.method} path={path} usuario={user} status={status} dur_ms={dur_ms}")
         finally:
             return response
+
+# middleware.py (agregar debajo de AuditMiddleware)
+class LastSeenMiddleware:
+    THROTTLE_S = 30
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            now = timezone.now()
+            try:
+                if (not user.last_seen) or ((now - user.last_seen).total_seconds() > self.THROTTLE_S):
+                    user.last_seen = now
+                    user.save(update_fields=['last_seen'])
+            except (OperationalError, ProgrammingError):
+                # La columna aún no existe -> evitar 500 y seguir
+                pass
+            except Exception:
+                # Cualquier otro problema no debe romper la request
+                pass
+
+        return self.get_response(request)

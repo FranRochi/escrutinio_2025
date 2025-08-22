@@ -5,6 +5,17 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# === Logs ===
+# Podés setear LOG_DIR en el entorno; si no, usa /srv/escrutinio/logs o BASE_DIR/logs como fallback.
+LOG_DIR = os.getenv('LOG_DIR', '/srv/escrutinio/logs')
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+except Exception:
+    # Si no se puede crear, usa un fallback seguro
+    LOG_DIR = str(BASE_DIR / 'logs')
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+
 # === Seguridad / entorno ===
 SECRET_KEY = os.getenv('SECRET_KEY', 'changeme-in-env')   # ponelo en .env
 DEBUG = os.getenv('DEBUG', '0') in ('1', 'true', 'True', 'yes', 'on')
@@ -35,16 +46,22 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # Si no tenés Nginx y querés servir estáticos con Django, podés activar WhiteNoise:
-    # 'whitenoise.middleware.WhiteNoiseMiddleware',
+    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # opcional si servís estáticos
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    # NEW: presencia de usuarios
+    "elecciones.middleware.LastSeenMiddleware",
+
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # Tu auditoría (paths sensibles)
     "elecciones.middleware.AuditMiddleware",
 ]
+
 
 ROOT_URLCONF = 'backend.urls'
 

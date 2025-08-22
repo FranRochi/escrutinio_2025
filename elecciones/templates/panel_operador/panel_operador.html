@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load custom_filters %}
+{% load static %}
 
 {% block content %}
 
@@ -360,5 +361,8 @@
   <!-- /only-landscape -->
 
 </form>
+{% endblock %}
 
+{% block extra_scripts %}
+  <script src="{% static 'js/operador.js' %}"></script>
 {% endblock %}
