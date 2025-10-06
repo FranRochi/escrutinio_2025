@@ -30,7 +30,6 @@
             <a href="{% url 'panel_subcomandos' %}" {% if request.resolver_match.url_name == 'panel_subcomandos' %}aria-current="page"{% endif %}>Subcomandos</a>          
             <a href="{% url 'panel_secciones' %}" {% if request.resolver_match.url_name == 'panel_secciones' %}aria-current="page"{% endif %}>Secciones</a>
             <a href="{% url 'panel_circuitos' %}" {% if request.resolver_match.url_name == 'panel_circuitos' %}aria-current="page"{% endif %}>Circuitos</a>
-            <a href="{% url 'panel_extranjeros' %}" {% if request.resolver_match.url_name == 'panel_extranjeros' %}aria-current="page"{% endif %}>Extranjeros</a>
             <a href="{% url 'panel_usuarios' %}" {% if request.resolver_match.url_name == 'panel_usuarios' %}aria-current="page"{% endif %}>Usuarios</a>
           {% elif request.user.role == 'admin' or request.user.is_superuser %}
             {# Admin ve lo mismo que panelista + acceso a operador #}
@@ -40,7 +39,6 @@
             <a href="{% url 'panel_subcomandos' %}">Subcomandos</a>            
             <a href="{% url 'panel_secciones' %}">Secciones</a>
             <a href="{% url 'panel_circuitos' %}">Circuitos</a>
-            <a href="{% url 'panel_extranjeros' %}">Extranjeros</a>
             <a href="{% url 'panel_usuarios' %}">Usuarios</a>
             <a href="{% url 'panel_operador' %}">Panel Operador</a>
           {% endif %}

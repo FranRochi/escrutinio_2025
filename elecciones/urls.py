@@ -82,12 +82,6 @@ urlpatterns = [
     path("api/panel/subcomandos_concejales/", views.api_subcomandos_concejales, name="api_subcomandos_concejales"),
     path("api/panel/subcomandos_diputados/", views.api_subcomandos_diputados, name="api_subcomandos_diputados"),
 
-    # PANEL EXTRANJEROS
-    path('panel/extranjeros/', views.panel_extranjeros, name='panel_extranjeros'),
-    path("api/panel/subcomandos_extranjeros_concejales/", views.subcomandos_extranjeros_concejales, name="subcomandos_extranjeros_concejales"),
-    path("api/panel/subcomandos_extranjeros_diputados/", views.subcomandos_extranjeros_diputados, name="subcomandos_extranjeros_diputados"),
-    path("export/subcomandos_extranjeros/", views.export_subcomandos_extranjeros_excel, name="export_subcomandos_extranjeros_excel"),
-
     #DESCARGA EXCEL TOTAL MESAS
     path("export/mesas_por_cargo.xlsx", views.export_mesas_por_cargo_excel, name="export_mesas_por_cargo_excel"),
 
