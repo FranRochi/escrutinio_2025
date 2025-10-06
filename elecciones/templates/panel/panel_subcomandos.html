@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel por Subcomandos{% endblock %}
+{% block body_class %}panel-page{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block main %}
+<div class="subcomandos-wrapper">
+
+  <!-- Columna izquierda + detalle -->
+  <div class="subcomandos-panel">
+    <!-- Columna izquierda -->
+    <section class="secciones-lista">
+      <h3 class="panel-titulo">Avance por Subcomando</h3>
+      <ul id="subcomandoList" class="secciones-items"></ul>
+    </section>
+
+    <!-- Columna derecha (detalle dinámico) -->
+    <section id="subcomandoDetalle" class="secciones-detalle" style="display:none;">
+      <div class="tabs">
+        <button id="tabConcejales" class="tab-btn active">Concejales</button>
+        <button id="tabDiputados" class="tab-btn">Diputados</button>
+      </div>
+      <div class="detalle-grafico">
+        <canvas id="graficoDetalle"></canvas>
+      </div>
+      <div class="detalle-info">
+        <h4 id="detalleTitulo">Detalle</h4>
+        <ul id="detallePartidos"></ul>
+        <h5>Escuelas</h5>
+        <ul id="detalleEscuelas"></ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- Bloque de resultados siempre debajo -->
+  <div class="subcomandos-tablas">
+    <div class="card card-tables">
+      <div class="card-head">
+        <h3>Resultados por Subcomando</h3>
+        <a href="{% url 'export_subcomandos_excel' %}" class="btn-export">Descargar Excel</a>
+      </div>
+
+        <h4>Concejales</h4>
+        <div class="tabla-scroll-top">
+        <table class="table table-sm">
+            <thead id="subcomandoHeadCon"></thead>
+            <tbody id="subcomandoListCon"></tbody>
+        </table>
+        </div>
+        <div id="paginationControlsSubCon" class="pagination"></div>
+
+        <h4>Diputados</h4>
+        <div class="tabla-scroll-top">
+        <table class="table table-sm">
+            <thead id="subcomandoHeadDip"></thead>
+            <tbody id="subcomandoListDip"></tbody>
+        </table>
+        </div>
+        <div id="paginationControlsSubDip" class="pagination"></div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/panel_geo.js' %}"></script>
+  <script> 
+    initPanel('subcomandos'); 
+    initPanel("subcomandos_concejales"); // tabla concejales
+    initPanel("subcomandos_diputados");  // tabla diputados
+  </script>
+{% endblock %}

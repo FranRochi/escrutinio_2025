@@ -12,7 +12,13 @@ services:
       - "3308:3306"
     volumes:
       - escrutinio_db_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
+      - ./my.cnf:/etc/mysql/conf.d/z_custom.cnf:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=3000
+      --innodb_buffer_pool_size=4G
+      --innodb_log_file_size=256M
+      --innodb_flush_log_at_trx_commit=2
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 10s
@@ -26,6 +32,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-1}
@@ -35,10 +43,47 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_HOST: db
       MYSQL_PORT: 3306
+
+      ADHERENTES_BASE_URL: ${ADHERENTES_BASE_URL}
+      ADHERENTES_SYNC_TOKEN: ${ADHERENTES_SYNC_TOKEN}
+
+      REGISTRO_BASE_URL: ${REGISTRO_BASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "8000:8000"
+      - "8089:8089" #locust
     volumes:
       - .:/app
+    command: >
+      sh -c "
+      ./wait-for-it.sh db:3306 --timeout=60 --strict --
+      python manage.py migrate --noinput &&
+      gunicorn backend.wsgi:application -w 8 -b 0.0.0.0:8000 --timeout 90
+      "
+
+  syncer:
+    image: escrutinio-web:latest
+    container_name: escrutinio_syncer
+    env_file:
+      - .env
+    depends_on:
+      web:
+        condition: service_started
+    command: >
+      sh -c '
+      INTERVAL=${SYNC_INTERVAL_SEC:-10};
+      while true; do
+        python manage.py sync_outbox || echo "[syncer] fallo, reintento";
+        # jitter 0-3s para evitar avalancha
+        JITTER=$((RANDOM % 4));
+        sleep $((INTERVAL + JITTER));
+      done
+      '
+  
+  redis:
+    image: redis:7
+    container_name: escrutinio_redis
+    restart: always
 
 volumes:
   escrutinio_db_data:

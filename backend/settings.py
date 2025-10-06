@@ -3,8 +3,12 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+#AGREGAR AL PRODUCCION 29-8-----!!!!!!!
+
+ADHERENTES_BASE_URL = os.getenv('ADHERENTES_BASE_URL', 'http://localhost:8001')  # ajustá host/puerto
+ADHERENTES_SYNC_TOKEN = os.getenv('ADHERENTES_SYNC_TOKEN', 'cambia-este-secreto-largo')
 
 
 # === Logs ===
@@ -42,11 +46,12 @@ INSTALLED_APPS = [
     'elecciones',
     'rest_framework',
     'rest_framework_simplejwt',
+    'api', # <- AGREGAR PRODUCCION
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # opcional si servís estáticos
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # opcional si servís estáticos
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -92,6 +97,7 @@ DATABASES = {
         'PASSWORD': os.getenv('MYSQL_PASSWORD', ''),
         'HOST': os.getenv('MYSQL_HOST', 'db'),
         'PORT': os.getenv('MYSQL_PORT', '3306'),
+        'CONN_MAX_AGE': 60,
         'OPTIONS': {
             'charset': 'utf8mb4',
             'use_unicode': True,
@@ -111,7 +117,7 @@ STATICFILES_DIRS = [BASE_DIR / 'elecciones' / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'   # ← agrega esto de nuevo
 
 # Si usás WhiteNoise:
-# STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -124,8 +130,12 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": os.getenv("JWT_SECRET", SECRET_KEY),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=4),   # antes 15m
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 LOGIN_URL = '/accounts/login/'
@@ -169,11 +179,40 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
+        "conciliacion_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": str(BASE_DIR / "logs" / "conciliacion.log"),
+            "when": "midnight",     # rota cada medianoche
+            "interval": 1,
+            "backupCount": 14,      # guarda 14 días de históricos
+            "encoding": "utf-8",
+            "formatter": "verbose",
+        },
     },
     "loggers": {
         "django": {"handlers": ["console", "app_file"], "level": "INFO"},
         "audit": {"handlers": ["audit_file"], "level": "INFO", "propagate": False},
         "app": {"handlers": ["app_file"], "level": "INFO"},
+        "sync": {"handlers": ["app_file"], "level": "INFO", "propagate": False},
+        "conciliacion": {"handlers": ["conciliacion_file"],"level": "INFO","propagate": False,},
     },
 }
 
+REGISTRO_BASE_URL = os.getenv("REGISTRO_BASE_URL", "http://localhost:8080")
+REGISTRO_OUTBOX_TOKEN = os.getenv("REGISTRO_OUTBOX_TOKEN", "")
+
+# =====================
+# Sesiones en Redis
+# =====================
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://redis:6379/0"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}

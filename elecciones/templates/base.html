@@ -16,34 +16,50 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<!-- Marcamos clase por rol. Si el usuario es operador, agregamos 'operador' al body-->
-
 <body class="{% if request.user.is_authenticated and request.user.role == 'operador' %}operador{% endif %} {% block body_class %}{% endblock %}">
   <header class="container">
     <nav class="header-nav">
       <div><strong>Sistema de Escrutinio</strong></div>
       <div class="links">
-        {# Mostrar enlaces SOLO si NO es operador #}
-        {% if request.user.is_authenticated and request.user.role != 'operador' %}
-          <a href="{% url 'panel_dashboard' %}" {% if request.resolver_match.url_name == 'panel_dashboard' %}aria-current="page"{% endif %}>Panel</a>
-          <a href="{% url 'panel_graficos' %}" {% if request.resolver_match.url_name == 'panel_graficos' %}aria-current="page"{% endif %}>Gráficos</a>
-          <a href="{% url 'panel_resultados' %}" {% if request.resolver_match.url_name == 'panel_resultados' %}aria-current="page"{% endif %}>Resultados</a>
-        {% endif %}
-        {# Botón de cierre de sesión siempre visible a autenticados #}
+        {# --- Menú según rol --- #}
         {% if request.user.is_authenticated %}
+          {% if request.user.role == 'panelista' %}
+            <a href="{% url 'panel_dashboard' %}" {% if request.resolver_match.url_name == 'panel_dashboard' %}aria-current="page"{% endif %}>Panel</a>
+            <a href="{% url 'panel_graficos' %}" {% if request.resolver_match.url_name == 'panel_graficos' %}aria-current="page"{% endif %}>Gráficos</a>
+            <a href="{% url 'panel_resultados' %}" {% if request.resolver_match.url_name == 'panel_resultados' %}aria-current="page"{% endif %}>Resultados</a>
+            <a href="{% url 'panel_subcomandos' %}" {% if request.resolver_match.url_name == 'panel_subcomandos' %}aria-current="page"{% endif %}>Subcomandos</a>          
+            <a href="{% url 'panel_secciones' %}" {% if request.resolver_match.url_name == 'panel_secciones' %}aria-current="page"{% endif %}>Secciones</a>
+            <a href="{% url 'panel_circuitos' %}" {% if request.resolver_match.url_name == 'panel_circuitos' %}aria-current="page"{% endif %}>Circuitos</a>
+            <a href="{% url 'panel_extranjeros' %}" {% if request.resolver_match.url_name == 'panel_extranjeros' %}aria-current="page"{% endif %}>Extranjeros</a>
+            <a href="{% url 'panel_usuarios' %}" {% if request.resolver_match.url_name == 'panel_usuarios' %}aria-current="page"{% endif %}>Usuarios</a>
+          {% elif request.user.role == 'admin' or request.user.is_superuser %}
+            {# Admin ve lo mismo que panelista + acceso a operador #}
+            <a href="{% url 'panel_dashboard' %}">Panel</a>
+            <a href="{% url 'panel_graficos' %}">Gráficos</a>
+            <a href="{% url 'panel_resultados' %}">Resultados</a>
+            <a href="{% url 'panel_subcomandos' %}">Subcomandos</a>            
+            <a href="{% url 'panel_secciones' %}">Secciones</a>
+            <a href="{% url 'panel_circuitos' %}">Circuitos</a>
+            <a href="{% url 'panel_extranjeros' %}">Extranjeros</a>
+            <a href="{% url 'panel_usuarios' %}">Usuarios</a>
+            <a href="{% url 'panel_operador' %}">Panel Operador</a>
+          {% endif %}
           <a id="btn-logout" href="{% url 'logout' %}">Cerrar sesión</a>
         {% endif %}
       </div>
     </nav>
   </header>
 
-  <main class="container">
-    {% block content %}{% endblock %}
-  </main>
+  {# --- Bloque flexible: admite "main" o "content" --- #}
+  {% block main %}
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+  {% endblock %}
 
   {% if request.user.is_authenticated and request.user.role == 'operador' %}
   <script>
-    // Limpieza al "salir" (cambiar página, cerrar pestaña, ir atrás, etc.)
+    // Limpieza al salir
     (function(){
       async function clearLocalStuff(){
         try { localStorage.clear(); } catch(e){}
@@ -72,17 +88,12 @@
         } catch(e){}
       }
 
-      // Al intentar abandonar la página
       window.addEventListener('pagehide', clearLocalStuff);
       window.addEventListener('beforeunload', clearLocalStuff);
 
-      // Si querés forzar limpieza adicional al cerrar sesión manualmente,
-      // podés interceptar el click y dejar que el servidor redirija luego:
       const btnLogout = document.getElementById('btn-logout');
       if (btnLogout) {
-        btnLogout.addEventListener('click', async (ev) => {
-          // No prevenimos la navegación: el servidor devolverá la página de logout con redirección
-          // pero iniciamos limpieza inmediata del lado cliente
+        btnLogout.addEventListener('click', async () => {
           try { await clearLocalStuff(); } catch(e){}
         });
       }

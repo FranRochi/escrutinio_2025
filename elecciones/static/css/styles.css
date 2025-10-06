@@ -6,7 +6,7 @@
 html, body { height: auto; overflow-y: auto; }
 
 body {
-  background: #f2f3f5 ;
+  /*background: #f2f3f5 ;*/
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -401,7 +401,7 @@ body.login-page {
   .only-mobile .cargo-title {
     display: block; margin: 12px 0 8px; padding: 10px 14px;
     font-size: 1.25rem; font-weight: 900; text-transform: uppercase; letter-spacing: .3px; color: #0a0a0a;
-    background: #eaf7ff; border-left: 8px solid #31b8f0; border-radius: 8px;
+    background: #eaf7ff; border-radius: 8px;
   }
 
   .cards-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px; }
@@ -724,14 +724,6 @@ body.login-page {
 .card-subcmd .card-head { margin-bottom: .5rem; }
 
 /* La lista pasa a grid responsive para usar todo el ancho */
-.subcmd-list {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: .55rem .7rem;
-  overflow: auto;                 /* si hay muchos, que scrollee dentro del card */
-  flex: 1 1 auto;
-  min-height: 0;                  /* evita overflow del flex container */
-}
 
 /* Ítem más compacto */
 .subcmd-item {
@@ -747,14 +739,22 @@ body.login-page {
   background: linear-gradient(180deg, #0e1a2d, #0a1524);
 }
 .subcmd-fill {
-  box-shadow: inset 0 0 0 1px rgba(49,184,240,.35);
-  background-image: linear-gradient(90deg, rgba(49,184,240,.55), rgba(49,184,240,.12));
+  background-image: linear-gradient(90deg, rgba(49,184,240,.55), rgba(49,184,240,0.12));
+  box-shadow: inset 0 0 0 1px rgba(49,184,240,.25);
 }
 .subcmd-pct {
   right: 10px;
   font-size: .82rem;
   text-shadow: 0 1px 2px rgba(0,0,0,.6);
 }
+
+.subcmd-list {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr);  /* 4 columnas */
+  grid-auto-flow: row;                    /* 👉 llena primero filas */
+  gap: .55rem .7rem;
+}
+
 
 /* 5) Usuarios conectados con scroll interno */
 .card-users {
@@ -1019,4 +1019,1070 @@ body.login-page {
   margin: .05rem 0 .55rem;
   font-size: 1.02rem;             /* antes 1.05rem */
 }
+
+/* Forzar que el main de secciones no traiga fondo blanco */
+.panel-page main.container {
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 1rem auto;
+  padding: 0;
+  max-width: 1600px;
+}
+
+/* ===============================
+   PANEL SECCIONES
+   =============================== */
+.secciones-panel {
+  display: grid;
+  grid-template-columns: 320px 1fr; /* columna fija izquierda + resto */
+  gap: 1.5rem;
+  align-items: stretch;
+  margin-top: 1rem;
+  max-width: 100% !important;
+}
+
+
+/* Columna izquierda */
+.secciones-lista {
+  background: #0f172a;
+  border: 1px solid #233044;
+  border-radius: 12px;
+  padding: 1rem;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  max-height: 800px;       /* 👈 ajusta a gusto, ~7 ítems */
+  overflow-y: auto;        /* 👈 scroll interno */
+}
+
+/* Scroll fino */
+.secciones-lista::-webkit-scrollbar {
+  width: 6px;
+}
+.secciones-lista::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 6px;
+}
+
+.panel-titulo {
+  margin-bottom: .8rem;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.secciones-items {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+.seccion-item {
+  background: #0b1424;
+  border: 1px solid #233044;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;             /* más grande */
+  cursor: pointer;
+  transition: background .2s, transform .15s;
+  font-size: 1rem;
+}
+.seccion-item:hover { background: #162033; transform: translateX(3px); }
+.seccion-item.active {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.seccion-row span:first-child {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.seccion-val {
+  background: #1e293b;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: .8rem;
+}
+
+.seccion-row {
+  display: flex; 
+  justify-content: space-between; 
+  font-weight: 700; 
+  margin-bottom: 0.5rem;   /* separa del progress bar */
+}
+
+.seccion-bar {
+  position: relative;   /* 👈 asegura que .seccion-fill se recorte dentro */
+  margin-top: 0.2rem;
+  height: 22px;
+  border-radius: 999px;
+  background: #0e1a2d;
+  border: 1px solid #233044;
+  overflow: hidden;     /* 👈 corta cualquier desborde */
+}
+
+.seccion-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: var(--pct, 0%);
+  background-image: linear-gradient(90deg, rgba(49,184,240,.55), rgba(49,184,240,0.12));
+  box-shadow: inset 0 0 0 1px rgba(49,184,240,.25);
+}
+.seccion-pct {
+  font-size: .9rem;
+  font-weight: 700;
+  text-align: right;
+  display: block;
+  margin-top: .25rem;
+  color: #e5f4ff;
+}
+
+/* Columna derecha */
+.secciones-detalle {
+  background: #0f172a;
+  border: 1px solid #233044;
+  border-radius: 12px;
+  padding: 1rem;
+  color: #e5e7eb;
+
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+  width: 100%;
+}
+
+.detalle-grafico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b1424;
+  border: 1px solid #233044;
+  border-radius: 10px;
+  padding: 1rem;
+  min-height: 400px;
+}
+
+.detalle-grafico canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 70vh;   /* nunca más del 70% de la pantalla */
+}
+
+
+.detalle-info {
+  background: #0b1424;
+  border: 1px solid #233044;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.detalle-info h4, 
+.detalle-info h5 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #38bdf8;
+  border-bottom: 2px solid #1e293b;
+  padding-bottom: .4rem;
+}
+
+.detalle-info ul {
+  list-style: none;
+  margin: 0 0 1rem; 
+  padding: 0;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  scrollbar-width: thin;            /* scrollbar más fino en Firefox */
+}
+
+/* Partidos: solo 4 visibles */
+#detallePartidos {
+  max-height: 11rem;   /* ≈ 4 ítems */
+}
+
+/* Escuelas: unas 8 visibles */
+#detalleEscuelas {
+  max-height: 25rem;    /* ≈ 8 ítems */
+}
+
+.detalle-info ul::-webkit-scrollbar {
+  width: 6px;                       /* scrollbar fino en Chrome */
+}
+.detalle-info ul::-webkit-scrollbar-thumb {
+  background: #374151;              /* gris oscuro */
+  border-radius: 6px;
+}
+
+.detalle-info li {
+  display: flex;
+  justify-content: space-between;
+  padding: .5rem .7rem;
+  border-bottom: 1px solid #1e293b;
+  font-size: .95rem;
+}
+.detalle-info li:nth-child(even) {
+  background: #111827;
+}
+
+body.panel-page {
+  background: #0b1220 !important;
+  background-image: none !important;
+  color: #e5e7eb !important;
+}
+
+
+body.panel-page main.container {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 1200px) {
+  .secciones-detalle {
+    grid-template-columns: 1fr;   /* apilar */
+  }
+}
+
+/* ===============================
+   PANEL CIRCUITOS
+   =============================== */
+.circuitos-panel {
+  margin-top: .5rem;
+}
+
+.circuitos-panel .panel-titulo {
+  margin-bottom: 1rem;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #e2e8f0;
+}
+
+#tabla_circuitos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+  background: #0b1424;      /* 👈 fondo oscuro */
+  border: 1px solid #233044;
+  display: block;
+  overflow-x: auto;   /* 👈 habilita scroll horizontal */
+  white-space: nowrap;
+}
+
+#tabla_circuitos .th-left,
+#tabla_circuitos td:first-child {
+  min-width: 280px;   /* 👈 ancho fijo/seguro para la columna Circuito */
+  max-width: 320px;
+}
+
+#tabla_circuitos th,
+#tabla_circuitos td {
+  border: 1px solid #233044;
+  padding: .5rem .6rem;
+  text-align: center;
+  color: #e5e7eb;
+}
+
+#tabla_circuitos thead th {
+  background: #0f172a;
+  color: #93c5fd;
+  font-weight: 800;
+}
+
+#tabla_circuitos td.num { text-align: right; }
+#tabla_circuitos td.pct { 
+  text-align: right;
+  font-weight: 700;
+  color: #e5f4ff;
+  background-image: linear-gradient(90deg, rgba(49,184,240,.22), rgba(49,184,240,0));
+  background-size: var(--pct, 0%) 100%;
+  background-repeat: no-repeat;
+}
+
+/* Barra de progreso dentro de la celda del circuito */
+/* Columna Circuito compacta */
+.circuito-progress {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+.circuito-progress .circuito-code {
+  font-weight: 700;
+  color: #93c5fd;
+  min-width: 60px;   /* ancho fijo para alinear */
+}
+
+.circuito-progress .circuito-val {
+  font-size: .8rem;
+  color: #a8c5ff;
+  white-space: nowrap;
+}
+
+.circuito-progress .bar {
+  flex: 1;
+  height: 8px;       /* más finita */
+  border-radius: 999px;
+  background: #0e1a2d;
+  overflow: hidden;
+  border: 1px solid #233044;
+  min-width: 80px;   /* asegura que siempre haya espacio visible */
+}
+
+.circuito-progress .fill {
+  display: block;
+  height: 100%;
+  background-image: linear-gradient(90deg, rgba(49,184,240,.55), rgba(49,184,240,0.12));
+  box-shadow: inset 0 0 0 1px rgba(49,184,240,.25);
+  width: var(--pct, 0%);
+}
+
+/* ===============================
+   PANEL VOTANTES
+   =============================== */
+.votantes-panel {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+  height: 100%;
+}
+
+/* Columnas */
+.votantes-panel .col-izquierda,
+.votantes-panel .col-derecha {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Cards */
+.votantes-panel .card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 1rem;
+  color: #e5e7eb;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;   /* distribuye adentro */
+}
+
+.votantes-panel .card canvas {
+  flex: 0 0 auto;
+  margin-bottom: 0.5rem;         /* 👈 pequeño espacio con el texto */
+}
+
+.votantes-panel .card .grafico-info {
+  margin-top: 0.5rem;
+  font-size: .9rem;
+  font-weight: 700;
+  color: #a8c5ff;
+  text-align: center;
+}
+
+.votantes-panel .card h3 {
+  margin: 0 0 1rem 0;
+  color: #93c5fd;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.votantes-panel .card .subtitulo {
+  margin: 1rem 0 .5rem;
+  font-size: .95rem;
+  font-weight: 600;
+  color: #a8c5ff;
+  text-align: center;
+}
+
+.votantes-panel canvas {
+  max-width: 320px;
+  max-height: 320px;
+  width: 100% !important;
+  height: auto !important;
+}
+
+.grafico-info {
+  margin-top: .8rem;
+  font-size: .9rem;
+  font-weight: 700;
+  color: #a8c5ff;
+  text-align: center;
+}
+
+/* Compacto para Nativos/Extranjeros */
+#graficoTotales {
+  max-width: 200px;
+  max-height: 200px;
+  margin: auto;
+}
+
+/* ===============================
+   CHAT DE VOTANTES (logs estilo tabla)
+   =============================== */
+.chat-votantes-card {
+  background: #0f172a;   /* mismo fondo oscuro */
+  color: #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  width: 100%;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-votantes {
+  flex: 1;
+  overflow-y: auto;
+  font-family: monospace;   /* 👈 terminal look */
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-line {
+  display: grid;
+  grid-template-columns: 200px 1fr;   /* col izquierda: escuela, derecha: detalle */
+  gap: 1rem;
+  padding: .4rem .6rem;
+  border-bottom: 1px solid #1e293b;
+  align-items: center;
+}
+
+.chat-line .escuela {
+  font-weight: 800;
+  color: var(--color, #93c5fd);
+}
+
+.chat-line .detalle {
+  color: #cbd5e1;
+  font-size: .85rem;
+}
+
+/* Scrollbar fino */
+.chat-votantes::-webkit-scrollbar { width: 6px; }
+.chat-votantes::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+
+/* Ajustar la card doble */
+.doble-grafico .graficos-lado-a-lado {
+  display: flex;                  /* en fila */
+  justify-content: space-around;  /* espacio parejo */
+  align-items: center;
+  width: 100%;
+  gap: 1.2rem;
+}
+
+.doble-grafico .grafico-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.doble-grafico .grafico-item canvas {
+  max-width: 280px;
+  max-height: 280px;
+}
+
+/* ====== PANEL USUARIOS ====== */
+.usuarios-panel {
+  background: #0b1220 !important;
+  color: #e5e7eb !important;
+}
+
+.usuarios-panel .controls {
+  display: flex;
+  justify-content: center;
+  gap: .6rem;
+  margin-bottom: 1rem;
+}
+
+.usuarios-panel .controls input {
+  background: #0f172a;
+  border: 1px solid #233044;
+  color: #e5e7eb;
+  padding: .55rem .8rem;
+  border-radius: 8px;
+  min-width: 280px;
+}
+
+.usuarios-panel .controls input::placeholder {
+  color: #94a3b8;
+}
+
+.usuarios-panel .btn-action {
+  background: linear-gradient(180deg,#31b8f0 0%,#199ed9 100%);
+  color: #062333;
+  font-weight: 800;
+  border: none;
+  border-radius: 8px;
+  padding: .55rem .9rem;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.usuarios-panel .btn-action:hover {
+  filter: brightness(1.1);
+}
+
+.usuarios-panel .table-container {
+    width: 100%;
+}
+
+.usuarios-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #0b1424;
+  border: 1px solid #233044;
+  font-size: .9rem;
+  table-layout: auto;
+}
+
+.usuarios-table th,
+.usuarios-table td {
+  border: 1px solid #233044;
+  padding: .6rem .7rem;
+  text-align: center;
+  color: #e5e7eb;
+}
+
+.usuarios-table thead th {
+  background: #0f172a;
+  color: #93c5fd;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.usuarios-table tbody tr:nth-child(even) {
+  background: #0e1a2d;
+}
+.usuarios-table tbody tr:hover {
+  background: #162033;
+}
+
+body.usuarios-panel main {
+  max-width: 1400px;   /* 👈 fijás un ancho máximo */
+  width: 100%;
+  margin: 0 auto;      /* 👈 centra horizontalmente */
+  padding: 1rem 2rem;
+}
+
+/* === Ajustes tabla de usuarios === */
+.usuarios-table {
+  font-size: 0.85rem;       /* 👈 texto un poco más chico */
+  table-layout: auto;      /* 👈 distribuye el ancho parejo */
+  width: 100%;
+}
+
+.usuarios-table th,
+.usuarios-table td {
+  padding: 0.35rem 0.5rem;  /* 👈 menos padding vertical y horizontal */
+  white-space: nowrap;      /* 👈 evita saltos de línea innecesarios */
+  overflow: hidden;
+  text-overflow: ellipsis;  /* 👈 si algo no entra, muestra "…" */
+}
+
+.usuarios-table th {
+  font-size: 0.9rem;
+  letter-spacing: .3px;
+}
+
+/* === Expandir columnas clave === */
+/* === Expandir columnas clave === */
+.usuarios-table th:nth-child(3),  /* NOMBRE */
+.usuarios-table td:nth-child(3) { min-width: 200px; }
+
+.usuarios-table th:nth-child(4),  /* EMAIL */
+.usuarios-table td:nth-child(4) { min-width: 220px; }
+
+.usuarios-table th:nth-child(6),  /* ESCUELA */
+.usuarios-table td:nth-child(6),
+.usuarios-table th:nth-child(7),  /* SUBCOMANDO */
+.usuarios-table td:nth-child(7) { min-width: 200px; }
+
+/* === Compactar columnas secundarias === */
+.usuarios-table th:nth-child(1),  /* ONLINE */
+.usuarios-table td:nth-child(1),
+.usuarios-table th:nth-child(2),  /* USUARIO */
+.usuarios-table td:nth-child(2),
+.usuarios-table th:nth-child(5),  /* ROL */
+.usuarios-table td:nth-child(5),
+.usuarios-table th:nth-child(8),  /* CELULAR */
+.usuarios-table td:nth-child(8) {
+  min-width: 100px;
+  max-width: 140px;
+  text-align: center;
+}
+
+
+/* === Contenedor general para vistas de tablas (Usuarios, Circuitos, etc.) === */
+.table-wrapper {
+  max-width: 1400px;     /* 👈 fijás ancho máximo */
+  margin: 0 auto;        /* 👈 centra horizontalmente */
+  padding: 0 1.5rem;     /* 👈 margen lateral */
+}
+
+/* Ajuste extra para que no se pegue arriba */
+.table-wrapper h2,
+.table-wrapper .panel-titulo {
+  margin-left: .5rem;
+}
+
+
+/* Panel Circuitos */
+.table-circuitos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+  background: #0b1424;
+  border: 1px solid #233044;
+  white-space: nowrap;
+}
+
+.tabla-scroll-top {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+.tabla-scroll-top::-webkit-scrollbar {
+  height: 10px;
+}
+.tabla-scroll-top::-webkit-scrollbar-thumb {
+  background: #31b8f0;
+  border-radius: 6px;
+}
+
+/* Primera columna sticky en scroll horizontal */
+.tabla-scroll-top table th:first-child,
+.tabla-scroll-top table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #0b1424;   /* mismo fondo de filas */
+  min-width: 240px;      /* ancho cómodo */
+  max-width: 300px;
+  text-align: left;
+}
+
+
+/* Tooltip partido */
+.tooltip-sigla {
+  position: fixed;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: .8rem;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 2px 6px rgba(0,0,0,.3);
+}
+
+/* Botones paginación */
+.pagination {
+  margin-top: .8rem;
+  text-align: center;
+  color: #e5e7eb;
+}
+.pagination button {
+  background: #31b8f0;
+  border: none;
+  color: #0b1220;
+  font-weight: 700;
+  padding: .4rem .8rem;
+  margin: 0 .3rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pagination button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.export-form {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+}
+
+.export-form select {
+  border-radius: 6px;
+  border: 1px solid #233044;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: .5rem .8rem;
+  min-width: 220px;    /* 👈 más ancho */
+  font-size: 0.95rem;  /* 👈 texto más legible */
+}
+
+.export-form .btn-primary {
+  background: linear-gradient(180deg,#31b8f0 0%,#199ed9 100%);
+  border: none;
+  border-radius: 6px;
+  padding: .45rem .8rem;
+  color: #062333;
+  font-weight: 800;
+  cursor: pointer;
+}
+.export-form .btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+#graficoAdherentes {
+  max-width: 480px;   /* antes 320px */
+  max-height: 480px;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 auto;
+}
+
+/* Card Exportación PDF */
+.export-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-card h3 {
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #93c5fd;
+  text-align: center;
+}
+
+.export-form {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.export-form select {
+  border-radius: 6px;
+  border: 1px solid #233044;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: .5rem .8rem;
+  min-width: 240px;
+  font-size: 0.95rem;
+}
+
+.export-form .btn-primary {
+  background: linear-gradient(180deg,#31b8f0 0%,#199ed9 100%);
+  border: none;
+  border-radius: 6px;
+  padding: .45rem .8rem;
+  color: #062333;
+  font-weight: 800;
+  cursor: pointer;
+}
+.export-form .btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+/* ===============================
+   AJUSTES PANEL VOTANTES
+   =============================== */
+
+/* Gráficos grandes: electores y adherentes */
+.votantes-panel .col-izquierda .card:first-child,
+.votantes-panel .col-derecha .card:first-child {
+  min-height: 420px;   /* más alto */
+}
+
+/* Card doble (Nativos/Extranjeros + Edades) */
+.votantes-panel .doble-grafico {
+  min-height: 360px;   /* un poco más grande */
+}
+
+/* Gráficos dentro de la card doble */
+.doble-grafico .grafico-item canvas {
+  max-width: 260px;
+  max-height: 260px;
+}
+
+/* Card Exportar PDF: más baja */
+.export-card {
+  min-height: 140px;   /* 👈 mucho más compacta */
+  padding: 1rem;
+  justify-content: flex-start;   /* alinear arriba */
+}
+.export-card h3 {
+  margin-bottom: .5rem;
+}
+.export-card form {
+  margin-top: 0;
+}
+
+/* Últimos votantes y Export PDF alineados */
+.chat-votantes-card,
+.export-card {
+  flex: 0 0 auto;      /* no estiren */
+}
+
+/* ===============================
+   AJUSTES GRAFICOS VOTANTES
+   =============================== */
+
+/* Electores y Adherentes: que ocupen todo el ancho disponible de la card */
+#graficoElectores,
+#graficoAdherentes {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;   /* antes 320px / 480px */
+  max-height: 380px;            /* límite razonable dentro de la card */
+  margin: 0 auto;
+  display: block;
+}
+
+/* Totales (Nativos/Extranjeros) más chico */
+#graficoTotales {
+  width: 100% !important;
+  max-width: 220px;    /* compacto */
+  max-height: 220px;
+  margin: auto;
+}
+
+/* Gráfico de edades: que aproveche todo el alto */
+#graficoEdades {
+  width: 100% !important;
+  height: 260px !important;
+  max-height: 280px;
+}
+
+
+/* ===============================
+   FIX: Gráficos y Export Card
+   =============================== */
+
+/* Forzar a que Adherentes NO se desborde */
+#graficoAdherentes {
+  max-width: 360px !important;   /* 👈 más contenido y seguro */
+  max-height: 360px !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 auto;
+  display: block;
+}
+
+/* Hacer que la card de Exportar PDF no se estire */
+.export-card {
+  min-height: auto !important;   /* quita altura fija */
+  height: auto !important;
+  flex: 0 0 auto !important;     /* evita que estire como las otras cards */
+  padding: .8rem !important;     /* menos padding interno */
+}
+.export-card h3 {
+  margin-bottom: .4rem;
+  font-size: 1rem;               /* más compacto */
+}
+
+/* ===== Botón Exportar Excel ===== */
+.btn-export {
+  display: inline-block;
+  padding: .55rem 1rem;
+  border-radius: 8px;
+  background: linear-gradient(180deg,#31b8f0 0%,#199ed9 100%);
+  color: #062333 !important;
+  font-weight: 800;
+  font-size: .95rem;
+  letter-spacing: .2px;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(49,184,240,.25);
+  transition: all .15s ease-in-out;
+  margin-bottom: 1rem; /* 👈 separa del borde de la tabla */
+}
+
+.btn-export:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 14px rgba(49,184,240,.35);
+  transform: translateY(-1px);
+}
+
+.btn-export:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(49,184,240,.3);
+}
+
+/* ===== Tablas de Resultados (Dashboard y Resultados completos) ===== */
+.tabla-resultados {
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed;
+  font-size:.95rem;
+}
+.tabla-resultados th,
+.tabla-resultados td{
+  border:1px solid #233044;
+  padding:.6rem .7rem;
+  color:#cbd5e1;
+}
+.tabla-resultados tbody tr{ background:#0b1424; }
+.tabla-resultados tbody tr:hover{ background:#0e1a2d; }
+
+/* Encabezados sticky */
+.tabla-resultados .thead-group th{
+  position:sticky; top:0; z-index:3;
+  background:#0b1220; color:#93c5fd;
+  border-bottom:2px solid #31b8f0;
+}
+.tabla-resultados .thead-sub th{
+  position:sticky; top:44px; z-index:2;
+  background:#0b1220; color:#a8c5ff; font-weight:800;
+}
+
+/* Columna izquierda más ancha */
+.tabla-resultados .th-left{ min-width:240px; text-align:left; }
+
+/* Porcentaje con reflejo */
+.tabla-resultados td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.tabla-resultados td.pct{
+  text-align:right; font-variant-numeric:tabular-nums;
+  font-weight:800; color:#e5f4ff;
+  background-image:linear-gradient(90deg, rgba(49,184,240,.22), rgba(49,184,240,0));
+  background-size:var(--pct, 0%) 100%;
+  background-repeat:no-repeat;
+  border-left-color:#27445b;
+}
+
+/* Layout general para Subcomandos */
+.subcomandos-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Parte superior: lista + detalle */
+.subcomandos-panel {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+/* Parte inferior: tablas siempre debajo */
+.subcomandos-tablas {
+  width: 100%;
+}
+
+/* Responsivo: en pantallas ≤1200px apilar lista y detalle */
+@media (max-width: 1200px) {
+  .subcomandos-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subcomandos-tablas .table-sm {
+  table-layout: auto;   /* 👈 que no se comprima fijo */
+  min-width: 1200px;    /* 👈 fuerza a que aparezca scroll horizontal */
+}
+
+.subcomandos-tablas th,
+.subcomandos-tablas td {
+  min-width: 70px;     /* 👈 cada columna partido no baja de 70px */
+  max-width: 90px;     /* 👈 evita que exploten demasiado */
+  text-align: center;
+  white-space: nowrap;
+}
+
+.subcomandos-tablas .th-left,
+.subcomandos-tablas td:first-child {
+  min-width: 280px;    /* 👈 columna SUBCOMANDO ancha y legible */
+  max-width: 340px;
+  text-align: left;
+}
+
+.tabs button {
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: .5rem 1rem;
+  border: 1px solid #233044;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.tabs button:hover {
+  background: #162033;
+}
+
+.tabs .tab-btn.active {
+  background: #31b8f0;
+  color: #0b1220;
+  border-color: #31b8f0;
+}
+
+/* ===== Subcomandos: layout detalle ===== */
+#subcomandoDetalle {
+  display: grid;
+  grid-template-rows: auto 1fr;      /* fila 1: tabs, fila 2: contenido */
+  grid-template-columns: 2fr 1fr;    /* columna izq: gráfico, der: detalle */
+  grid-template-areas:
+    "tabs tabs"
+    "grafico info";
+  gap: 1rem 2rem;
+}
+
+#subcomandoDetalle .tabs { grid-area: tabs; }
+#subcomandoDetalle .detalle-grafico { grid-area: grafico; }
+#subcomandoDetalle .detalle-info { grid-area: info; }
+
+/* ===== Secciones: layout detalle ===== */
+#seccionDetalle {
+  display: grid;
+  grid-template-rows: auto 1fr;     /* fila 1: tabs, fila 2: resto */
+  grid-template-columns: 2fr 1fr;   /* izq: gráfico, der: info */
+  grid-template-areas:
+    "tabs tabs"
+    "grafico info";
+  gap: 1rem 2rem;
+}
+
+#seccionDetalle .tabs {
+  grid-area: tabs;
+  display: flex;
+  gap: .6rem;
+  margin-bottom: .5rem;
+}
+
+#seccionDetalle .tabs button {
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: .5rem 1rem;
+  border: 1px solid #233044;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+#seccionDetalle .tabs button:hover { background: #162033; }
+#seccionDetalle .tabs button.active {
+  background: #31b8f0;
+  color: #0b1220;
+  border-color: #31b8f0;
+}
+
+#seccionDetalle .detalle-grafico { grid-area: grafico; }
+#seccionDetalle .detalle-info    { grid-area: info; }
+
 

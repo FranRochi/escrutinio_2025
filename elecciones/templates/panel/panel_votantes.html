@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel Votantes{% endblock %}
+{% block body_class %}panel-page{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+{% endblock %}
+
+{% block main %}
+<div class="votantes-panel">
+  <!-- Columna izquierda -->
+  <div class="col-izquierda">
+    <!-- Electores -->
+    <div class="card">
+      <h3>Concurrencia Total de Electores a Votar</h3>
+      <canvas id="graficoElectores"></canvas>
+      <p id="infoElectores" class="grafico-info"></p>
+    </div>
+
+    <!-- Totales Nativos/Extranjeros + Edades -->
+    <div class="card doble-grafico">
+      <h3>Totales por Tipo y Distribución por Edad</h3>
+      <div class="graficos-lado-a-lado">
+        <div class="grafico-item">
+          <canvas id="graficoTotales"></canvas>
+          <p id="infoTotales" class="grafico-info"></p>
+        </div>
+        <div class="grafico-item">
+          <canvas id="graficoEdades"></canvas>
+        </div>
+      </div>
+    </div>
+  </div> <!-- 👈 cierre correcto de col-izquierda -->
+
+  <!-- Columna derecha -->
+  <div class="col-derecha">
+    <!-- Avance de Adherentes -->
+    <div class="card">
+      <h3>Avance de Adherentes</h3>
+      <canvas id="graficoAdherentes"></canvas>
+      <p id="infoAdherentes" class="grafico-info"></p>
+    </div>
+
+    <!-- Exportación PDF -->
+    {% if request.user.is_staff or request.user.is_superuser %}
+    <div class="card export-card">
+      <h3>Exportar PDF por Usuario</h3>
+      <form method="get" action="{% url 'export_adherentes_pdf' %}" class="export-form">
+        <select name="usuario" id="usuario" required>
+          <option value="">-- Seleccione un usuario --</option>
+          {% for u in usuarios %}
+            <option value="{{ u }}">{{ u }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn-primary">📄 Generar PDF</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- Últimos votantes -->
+    <div class="card chat-votantes-card">
+      <h3>Últimos votantes marcados</h3>
+      <div id="chat-votantes" class="chat-votantes">
+        <p>Cargando...</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/votantes.js' %}"></script>
+{% endblock %}

@@ -3,9 +3,19 @@ from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from .models import (
     User, Subcomando, Escuela, Mesa,
     Eleccion, CargoPostulacion, Partido, PartidoPostulacion,
-    VotoMesaCargo, VotoMesaEspecial, ResumenMesa
+    VotoMesaCargo, VotoMesaEspecial, ResumenMesa, Marcador,
+    MarcacionTemp,
 )
 from .forms import CustomUserCreationForm, CustomUserChangeForm
+
+
+class MarcadorInline(admin.TabularInline):
+    model = Marcador
+    fk_name = "user"
+    autocomplete_fields = ("mesa",)
+    extra = 1
+    fields = ("mesa", "activo", "created_at")
+    readonly_fields = ("created_at",)
 
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
@@ -13,28 +23,26 @@ class UserAdmin(DjangoUserAdmin):
     form = CustomUserChangeForm
     model = User
 
-    list_display = ("username", "role", "escuela", "is_active", "is_staff", "last_login")
+    list_display = ("username", "role", "escuela", "celular", "is_active", "is_staff", "last_login")
     list_filter  = ("role", "is_active", "is_staff", "escuela")
     search_fields = ("username", "first_name", "last_name", "email")
     ordering = ("username",)
     autocomplete_fields = ("escuela",)
     filter_horizontal = ("groups", "user_permissions")
+    inlines = [MarcadorInline]          # 👈 inline para asignar mesa
 
-    # ===== Vista "Cambiar usuario" =====
     fieldsets = (
         (None, {"fields": ("username", "password")}),
-        ("Información personal", {"fields": ("first_name", "last_name", "email")}),
+        ("Información personal", {"fields": ("first_name", "last_name", "email", "celular")}),   # 👈 agregar celular
         ("Permisos", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Fechas importantes", {"fields": ("last_login", "date_joined")}),
-        ("Datos electorales", {"fields": ("role", "escuela")}),
+        ("Datos electorales", {"fields": ("role", "escuela", "subcomando")}),
     )
 
-    # ===== Vista "Agregar usuario" =====
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            # IMPORTANTe: estos campos deben existir en CustomUserCreationForm
-            "fields": ("username", "password1", "password2", "role", "escuela", "is_active", "is_staff"),
+            "fields": ("username", "password1", "password2", "role", "escuela", "subcomando", "celular", "is_active", "is_staff"),  # 👈 agregar celular
         }),
     )
 
@@ -120,3 +128,18 @@ class ResumenMesaAdmin(admin.ModelAdmin):
     search_fields = ("mesa__numero_mesa",)
     autocomplete_fields = ("mesa",)
     ordering = ("id",)
+
+@admin.register(Marcador)
+class MarcadorAdmin(admin.ModelAdmin):
+    list_display = ('user', 'mesa', 'activo', 'created_at')
+    list_filter = ('activo',)
+    search_fields = ('user__username', 'mesa__numero_mesa')
+
+
+
+@admin.register(MarcacionTemp)
+class MarcacionTempAdmin(admin.ModelAdmin):
+    list_display = ("id","user","mesa","orden","dni","created_at")
+    list_filter  = ("mesa","user")
+    search_fields = ("orden","dni","user__username","mesa__numero_mesa")
+    ordering = ("-created_at",)

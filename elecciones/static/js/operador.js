@@ -10,6 +10,8 @@ function getElectoresCap() {
   return isNaN(n) || n < 0 ? 0 : n;
 }
 
+let CURRENT_CAP = 350; // default
+
 /** 
  * Reglas nuevas para inputs de votos:
  * - Máximo permitido por input = E (electores que votaron)
@@ -17,21 +19,15 @@ function getElectoresCap() {
  * - Si pone >E, también 000
  */
 function sanitizeVoteForInputs(val) {
-  const d = digitsOnly(val).slice(0, 3);       // sólo 3 dígitos
+  const d = digitsOnly(val).slice(0, 3);
   if (!d) return 0;
   const n = parseInt(d, 10);
   const E = getElectoresCap();
 
-  // Si escribe >350 -> 000 (regla pedida)
-  if (n > 350) return 0;
-
-  // Si E=0, ningún input puede tener valor >0
+  if (n > CURRENT_CAP) return 0;
   if (E <= 0) return 0;
-
-  // Si escribe >E -> 000
   if (n > E) return 0;
 
-  // Acepta n entre 0..min(E,350) pero SIN clamping hacia arriba
   return n;
 }
 
@@ -56,11 +52,11 @@ function scrollTopSmooth() {
 }
 
 /** Parse para campos del resumen (0..350) */
-function toNumber350(val) {
+function toNumberCap(val) {
   const d = digitsOnly(val).slice(0, 3);
   let n = parseInt(d || "0", 10);
   if (isNaN(n) || n < 0) n = 0;
-  if (n > 350) n = 350;
+  if (n > CURRENT_CAP) n = CURRENT_CAP;
   return n;
 }
 
@@ -70,8 +66,7 @@ function getVoteValue(input) {
 }
 
 function getEffectiveCap() {
-  // E ya lo limitás a 0..350 en los handlers del input
-  return Math.min(getElectoresCap(), 350);
+  return Math.min(getElectoresCap(), CURRENT_CAP);
 }
 
 function showNotification(msg, timeout=3000) {
@@ -279,7 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const d = digitsOnly(elElectores.value).slice(0, 3);
       let n = parseInt(d || "0", 10);
       if (isNaN(n) || n < 0) n = 0;
-      if (n > 350) n = 350; // mantener 350 como máximo en el resumen
+      if (n > CURRENT_CAP) n = 0; // si pasa el límite, forzamos a 000
       elElectores.value = n ? String(n) : "";
       // Revalida todos los inputs con el nuevo E
       sanitizeAllVotesAgainstE();
@@ -291,11 +286,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     elElectores.addEventListener('blur', () => {
-      // Formato normal (sin ceros a la izquierda) en el resumen
       const d = digitsOnly(elElectores.value).slice(0, 3);
       let n = parseInt(d || "0", 10);
       if (isNaN(n) || n < 0) n = 0;
-      if (n > 350) n = 350;
+      if (n > CURRENT_CAP) n = CURRENT_CAP; // ← usa el cap dinámico (350/460)
       elElectores.value = n ? String(n) : "";
       sanitizeAllVotesAgainstE();
       enforceCapAndDominanceByCargo();
@@ -304,6 +298,7 @@ document.addEventListener("DOMContentLoaded", function () {
       calcularTotales();
       notifiedAtCap.clear();
     });
+
   }
 
   // Habilitar/deshabilitar envío según mesa seleccionada
@@ -333,6 +328,14 @@ document.addEventListener("DOMContentLoaded", function () {
     .then(r => r.json())
     .then(data => {
       if (data?.status !== "ok") return;
+
+      CURRENT_CAP = data.cap || 350; // 👈 seteamos el cap correcto
+
+      const elE = document.getElementById("electores_votaron");
+      if (elE && elE.value) {
+        const n = toNumberCap(elE.value);       // respeta CURRENT_CAP (460 si extranjera)
+        elE.value = n ? String(n) : "";
+      }
 
       updateMesaOptionAppearance(mesaId, String(data.escrutada) === "1");
 
@@ -604,9 +607,9 @@ function enviarVotos() {
   });
 
   const resumenMesa = {
-    electores_votaron: toNumber350(document.getElementById("electores_votaron")?.value),
-    sobres_encontrados: toNumber350(document.getElementById("sobres_encontrados")?.value),
-    diferencia: toNumber350(document.getElementById("diferencia_sobres")?.value),
+    electores_votaron: toNumberCap(document.getElementById("electores_votaron")?.value),
+    sobres_encontrados: toNumberCap(document.getElementById("sobres_encontrados")?.value),
+    diferencia: toNumberCap(document.getElementById("diferencia_sobres")?.value),
   };
 
   const payload = {

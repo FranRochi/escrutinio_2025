@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel por Circuitos{% endblock %}
+{% block body_class %}panel-page{% endblock %}
+
+{% block main %}
+<div class="table-wrapper circuitos-wrapper">
+  <div class="circuitos-panel">
+    <h3 class="panel-titulo">Avance por Circuito</h3>
+    <div class="tabla-scroll-top">
+      <div class="tabla-wrap">
+        <a href="{% url 'export_circuitos_excel' %}" class="btn-export">
+          ⬇ Descargar Excel
+        </a>
+        <table id="tabla_circuitos" class="table-circuitos">
+          <thead id="circuitoHead"></thead>
+          <tbody id="circuitoList"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="paginationControls" class="pagination"></div>
+  </div>
+  <div class="circuitos-panel">
+  <h3 class="panel-titulo">Avance por Circuito – Diputados Provinciales</h3>
+    <div class="tabla-scroll-top">
+      <div class="tabla-wrap">
+        <a href="{% url 'export_circuitos_excel_diputados' %}" class="btn-export">
+          ⬇ Descargar Excel
+        </a>
+        <table id="tabla_circuitos_dip" class="table-circuitos">
+          <thead id="circuitoHeadDip"></thead>
+          <tbody id="circuitoListDip"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="paginationControlsDip" class="pagination"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/panel_geo.js' %}"></script>
+  <script>
+    initPanel('circuitos');           // Concejales
+    initPanel('circuitos_diputados'); // Diputados
+  </script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Extranjeros{% endblock %}
+{% block body_class %}panel-page{% endblock %}
+
+{% block main %}
+<div class="subcomandos-tablas">
+  <div class="card card-tables">
+    <div class="card-head">
+      <h3>Resultados Extranjeros por Subcomando</h3>
+      <a href="{% url 'export_subcomandos_extranjeros_excel' %}" class="btn-export">Descargar Excel</a>
+    </div>
+
+    <h4>Concejales</h4>
+    <div class="tabla-scroll-top">
+      <table class="table table-sm">
+        <thead id="subcomandoHeadExtCon"></thead>
+        <tbody id="subcomandoListExtCon"></tbody>
+      </table>
+    </div>
+    <div id="paginationControlsSubExtCon" class="pagination"></div>
+
+    <h4>Diputados</h4>
+    <div class="tabla-scroll-top">
+      <table class="table table-sm">
+        <thead id="subcomandoHeadExtDip"></thead>
+        <tbody id="subcomandoListExtDip"></tbody>
+      </table>
+    </div>
+    <div id="paginationControlsSubExtDip" class="pagination"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/panel_geo.js' %}"></script>
+<script>
+  initPanel("subcomandos_extranjeros_concejales");
+  initPanel("subcomandos_extranjeros_diputados");
+</script>
+{% endblock %}

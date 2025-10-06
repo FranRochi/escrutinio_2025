@@ -34,8 +34,9 @@
     <div class="actions-row">
       <a href="{% url 'panel_dashboard' %}" class="btn-small">&laquo; Volver al panel</a>
       <div class="right">
-        <a href="/export/summary.xlsx?cargo=DIPUTADOS" class="btn-small">Excel Diputados</a>
-        <a href="/export/summary.xlsx?cargo=CONCEJALES" class="btn-small">Excel Concejales</a>
+        <a href="/export/summary.xlsx?cargo=DIPUTADOS" class="btn-export">Excel Diputados</a>
+        <a href="/export/summary.xlsx?cargo=CONCEJALES" class="btn-export">Excel Concejales</a>
+        <a href="{% url 'export_mesas_por_cargo_excel' %}"class="btn-export">Descargar Mesas</a>
       </div>
     </div>
   </section>

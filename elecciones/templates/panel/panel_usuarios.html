@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Usuarios{% endblock %}
+{% block body_class %}panel-page usuarios-panel{% endblock %}
+
+{% block content %}
+<div class="controls">
+  <input type="text" id="searchInput" placeholder="Buscar usuario o subcomando">
+  <button id="btnSearch" class="btn-action">Buscar</button>
+  <button id="btnPrev" class="btn-action">⟨ Anterior</button>
+  <button id="btnNext" class="btn-action">Siguiente ⟩</button>
+  <span id="statusUsuarios"></span>
+</div>
+<div class="table-wrapper">
+  <div class="table-container">
+    <table id="tablaUsuarios" class="usuarios-table">
+      <thead>
+        <tr>
+          <th>Online</th>
+          <th>Usuario</th>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Rol</th>
+          <th>Escuela</th>
+          <th>Subcomando</th>
+          <th>Celular</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/panel_usuarios.js' %}"></script>
+{% endblock %}

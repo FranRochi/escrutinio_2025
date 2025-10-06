@@ -90,3 +90,28 @@ class LastSeenMiddleware:
                 pass
 
         return self.get_response(request)
+    
+    # elecciones/middleware.py
+
+class TimingMiddleware(MiddlewareMixin):
+    def process_request(self, request):
+        request._start_time = time.monotonic()
+
+    def process_response(self, request, response):
+        try:
+            if hasattr(request, "_start_time"):
+                dur_ms = int((time.monotonic() - request._start_time) * 1000)
+                path = request.path
+                status = getattr(response, "status_code", "-")
+                user = (
+                    request.user.username
+                    if getattr(request, "user", None) and request.user.is_authenticated
+                    else "anon"
+                )
+                logging.getLogger("app").info(
+                    f"REQ {request.method} path={path} usuario={user} "
+                    f"status={status} dur_ms={dur_ms}"
+                )
+        finally:
+            return response
+

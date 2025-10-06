@@ -7,7 +7,7 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         # Campos que estarán en el formulario de "Agregar usuario"
-        fields = ("username", "password1", "password2", "role", "escuela", "is_active", "is_staff")
+        fields = ("username", "password1", "password2", "role", "celular", "escuela", "is_active", "is_staff")
 
 class CustomUserChangeForm(UserChangeForm):
     class Meta(UserChangeForm.Meta):
@@ -15,6 +15,6 @@ class CustomUserChangeForm(UserChangeForm):
         # Campos visibles en "Cambiar usuario"
         fields = (
             "username", "first_name", "last_name", "email",
-            "role", "escuela",
+            "role", "escuela", "celular",
             "is_active", "is_staff", "is_superuser", "groups", "user_permissions"
         )

@@ -1,0 +1,59 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: escrutinio_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1q2w3e4r!}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-escrutinio}
+      MYSQL_USER: ${MYSQL_USER:-escrutinio_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-1q2w3e4r!}
+    volumes:
+      - escrutinio_db_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      - apps_net
+
+  web:
+    build: .
+    container_name: escrutinio_web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_SETTINGS_MODULE: backend.settings
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-0}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+
+      ADHERENTES_BASE_URL: ${ADHERENTES_BASE_URL:-http://adherentes_web:8000}
+      ADHERENTES_SYNC_TOKEN: ${ADHERENTES_SYNC_TOKEN}
+
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - .:/app
+      - /srv/escrutinio/staticfiles:/app/staticfiles
+      - /srv/escrutinio/logs:/srv/escrutinio/logs   # 👈 montar logs
+    ports:
+      - "8003:8000"
+    networks:
+      - apps_net
+
+volumes:
+  escrutinio_db_data:
+
+networks:
+  apps_net:
+    external: true
