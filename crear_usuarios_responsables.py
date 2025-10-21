@@ -3,8 +3,8 @@ import random
 import re
 from elecciones.models import User, Escuela
 
-EXCEL_PATH  = "/app/responsables_edificio.xlsx"
-OUTPUT_PATH = "/app/credenciales_responsables.xlsx"
+EXCEL_PATH  = "/app/responsables_edificio_OCT_2025.xlsx"
+OUTPUT_PATH = "/app/credenciales_responsables_OCT.xlsx"
 
 SPECIAL_CHARS = list("!#$%&/()=?¡¿/*°")
 

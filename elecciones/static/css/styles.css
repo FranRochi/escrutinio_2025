@@ -97,11 +97,12 @@ select {
 /* Encabezados azul */
 .tabla_telegrama th,
 #tabla_votos th {
-  background-color: #31b8f0;
-  color: #000;
+  background: #31b8f0;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: .3px;
   text-transform: uppercase;
-  font-size: 14px;
-  padding: 12px 10px;
+  border: none;
 }
 
 /* Resumen: tabla “plana” (sin caja) */
@@ -186,26 +187,60 @@ select {
 
 /* Tabla principal */
 #tabla_votos {
-  margin: 20px 0;
-  overflow-x: auto;
-  display: block;
-  background-color: transparent !important;
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
+
+.tabla-votos-wrap {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 0;
+}
+
 #tabla_votos table,
 #tabla_votos thead,
 #tabla_votos tbody,
 #tabla_votos tfoot,
 #tabla_votos tr,
-#tabla_votos td { background-color: transparent !important; }
+#tabla_votos td {
+  background: #fff;
+  border: 1px solid #d8e3ea;
+  padding: 8px 10px;
+}
+
+#tabla_votos tbody tr:nth-child(even) td {
+  background: #f8fcff;
+}
 
 table { width: 100%; table-layout: auto; border-collapse: collapse; background-color: #fff; border: 1px solid #ccc; }
 table th, table td { text-align: center; padding: 10px 12px; border: 1px solid #e0e0e0; }
 
 #tabla_votos tbody tr:nth-child(even) { background-color: #f9f9f9; }
-#tabla_votos tfoot tr { background-color: #f2f9fb; font-weight: bold; }
+#tabla_votos tfoot tr {
+  background: #eaf9fc;
+  font-weight: 700;
+}
 #tabla_votos tfoot input { background-color: #eaf9fc; border: 1px solid #ccc; }
+#tabla_votos input[type="text"] {
+  width: 80px;
+  text-align: center;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 4px;
+  transition: border-color .2s;
+}
+
+#tabla_votos input[type="text"]:focus {
+  border-color: #31b8f0;
+  outline: none;
+  box-shadow: 0 0 4px rgba(49,184,240,.3);
+}
 
 #tabla_votos input[type="number"] {
   width: 60px;
@@ -461,6 +496,7 @@ body.login-page {
     max-width: 96px; min-width: 84px; font-size: 12.5px;
   }
 }
+
 /* ===============================
    PANELISTA / PANEL DASHBOARD (unificado)
    =============================== */
@@ -484,23 +520,23 @@ body.login-page {
 /* Layout principal con áreas: controls arriba, después 3 columnas, subcomandos abajo a full */
 .panel-page main.container {
   max-width: 1600px;
-  margin: .75rem auto 1.25rem;
+  margin: .5rem auto 1rem;
   padding: 0 1rem;
-  gap: .06rem;
   background: transparent !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 
   display: grid;
-  grid-template-columns: 1.2fr 1fr .8fr;
+  grid-template-columns: 0.8fr 1.1fr; /* 👈 resultados más angosto, gráficos más ancho */
   grid-template-areas:
-    "controls controls controls"
-    "results  charts   users"
-    "subcmd   subcmd   subcmd";
+    "controls controls"
+    "results  charts"
+    "subcmd   subcmd";
   grid-auto-rows: minmax(120px, auto);
-  gap: 1rem;
+  gap: .9rem;
   align-items: start;
 }
+
 
 /* Controles superiores */
 .panel-page .controls {
@@ -581,17 +617,12 @@ body.login-page {
 }
 
 /* ===== Gráfico ===== */
-.card-charts { min-height: 420px; display: flex; flex-direction: column; }
+.card-charts { min-height: 360px; display: flex; flex-direction: column; }
 #chartWrap { flex: 1 1 auto; position: relative; }
 #chartWrap canvas { position: absolute; inset: 0; }
 
 /* ===== Usuarios (luz tipo máquina) ===== */
-.panel-page .users-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; font-size: .95rem; }
-.panel-page .users-list li { display: flex; align-items: center; gap: .45rem; }
-.panel-page .online-dot { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 10px rgba(25,209,79,.8); display: inline-block; }
-.panel-page .online  { background: #19d14f; }
-.panel-page .offline { background: #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,.6); }
-.panel-page .kpis { margin-top: 1rem; color: #cbd5e1; }
+.card-users { display: none !important; }
 
 /* Responsive: apilar en 1 columna */
 @media (max-width: 1100px) {
@@ -887,20 +918,37 @@ body.login-page {
   color: #e2e8f0;
 }
 
-/* Chip KPI más vistoso */
-.resultados-page .card .meta .kpi{
-  display:inline-block;
-  background:#0b1424;
-  border:1px solid #233044;
-  border-radius:12px;
-  padding:.5rem .7rem;
-  color:#cbd5e1; font-weight:700;
-  box-shadow: inset 0 0 0 1px rgba(49,184,240,.08);
+/* KPI mejorado: más contraste, legible y adaptable */
+.resultados-page .card .meta .kpi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #e5f4ff;
+  background: linear-gradient(180deg, #102035 0%, #0b1424 100%);
+  border: 1px solid #2a3c57;
+  border-radius: 12px;
+  padding: .6rem 1rem;
+  box-shadow: 0 0 10px rgba(49,184,240,.25), inset 0 0 4px rgba(49,184,240,.15);
+  letter-spacing: .2px;
+  white-space: nowrap;
 }
-.resultados-page .kpi-bar{
-  background-image: linear-gradient(90deg, rgba(49,184,240,.25), rgba(49,184,240,0));
+
+.resultados-page .card .meta .kpi strong {
+  color: #7dd3fc;
+  font-weight: 900;
+  text-shadow: 0 0 4px rgba(49,184,240,.35);
+}
+
+/* Efecto de “borde luminoso” en el progreso */
+.resultados-page .kpi-bar {
+  background-image: linear-gradient(90deg, rgba(49,184,240,.4), rgba(49,184,240,0));
   background-size: var(--pct, 0%) 100%;
   background-repeat: no-repeat;
+  border-radius: 6px;
+  transition: background-size .6s ease;
 }
 
 /* Tabla oscura compacta + encabezados pegados */
@@ -2085,4 +2133,638 @@ body.usuarios-panel main {
 #seccionDetalle .detalle-grafico { grid-area: grafico; }
 #seccionDetalle .detalle-info    { grid-area: info; }
 
+
+/*==================*/
+/* CARD DE GRAFICOS */
+/*==================*/
+
+/* ===== Mejoras visuales del card de gráficos ===== */
+.card-charts {
+  background: radial-gradient(circle at top left, #162033, #0b1424 70%);
+  border: 1px solid #233044;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.35);
+  padding: 1rem 1.2rem 1.5rem;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .8rem;
+}
+
+.chart-header h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #93c5fd;
+  margin: 0;
+}
+
+.chart-tabs {
+  display: flex;
+  gap: .5rem;
+}
+
+.chart-tabs .tab-btn {
+  background: #0f172a;
+  border: 1px solid #233044;
+  color: #e5e7eb;
+  font-weight: 700;
+  font-size: .9rem;
+  border-radius: 8px;
+  padding: .4rem .8rem;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.chart-tabs .tab-btn:hover { background: #162033; }
+.chart-tabs .tab-btn.active {
+  background: #31b8f0;
+  color: #0b1220;
+  border-color: #31b8f0;
+  box-shadow: 0 0 10px rgba(49,184,240,.35);
+}
+
+.chart-container {
+  flex: 1 1 auto;
+  position: relative;
+  margin-top: .5rem;
+}
+.chart-container canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-footer {
+  text-align: right;
+  margin-top: .6rem;
+  font-size: .8rem;
+  opacity: .7;
+  color: #a8c5ff;
+}
+
+#subcmdList {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);  /* 👈 Fuerza 4 columnas exactas */
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+
+.subcmd-box {
+  background: #0b1424;
+  border: 1px solid #233044;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  color: #e5e7eb;
+}
+
+.subcmd-title {
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+  color: #e2e8f0;
+}
+
+.progress-bar {
+  position: relative;
+  background: #0e1a2d;
+  border-radius: 999px;
+  height: 18px;
+  border: 1px solid #233044;
+  overflow: hidden;
+}
+
+.progress-bar .fill {
+  background: linear-gradient(90deg, #1e88e5, #31b8f0);
+  height: 100%;
+  transition: width 0.6s ease;
+}
+
+.progress-bar .pct-label {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  top: 0;
+  left: 0;
+  font-size: 0.8rem;
+  color: #fff;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+/* ===== Ajustes visuales: KPI en una línea y altura de cards ===== */
+
+/* Forzar que el KPI nunca se corte */
+.card-results .meta .kpi {
+  white-space: nowrap;            /* 👈 evita salto de línea */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  font-size: .95rem;
+}
+
+/* Forzar que ambas cards (tabla y gráfico) tengan la misma altura */
+.panel-page .card-results,
+.panel-page .card-charts {
+  min-height: 420px;              /* 👈 altura fija igualada */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Asegurar que la tabla dentro de la card ocupe todo el alto restante */
+.panel-page .card-results table {
+  flex: 1 1 auto;
+}
+
+
+
+
+/* ===============================
+   PANEL DASHBOARD — VERSIÓN MOBILE
+   =============================== */
+@media (max-width: 768px) {
+
+  /* Estructura general: apilar todo */
+  .panel-page main.container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0.8rem;
+  }
+
+  /* Controles compactos */
+  .panel-page .controls {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: .5rem;
+    font-size: .9rem;
+  }
+  .panel-page .controls select,
+  .panel-page .controls a,
+  .panel-page .controls button {
+    flex: 1 1 auto;
+    min-width: 45%;
+    font-size: .9rem;
+    padding: .4rem .6rem;
+  }
+
+  /* Cards apiladas a ancho completo */
+  .panel-page .card {
+    width: 100%;
+    padding: .8rem;
+    border-radius: 10px;
+  }
+
+  /* Card: Resultados */
+  .panel-page .card-results h3 {
+    font-size: 1rem;
+    text-align: center;
+  }
+  .panel-page .card-results .meta {
+    text-align: center;
+    margin-top: .4rem;
+  }
+  .panel-page .table-sm {
+    font-size: .85rem;
+    display: block;
+    overflow-x: auto;
+  }
+  .panel-page .table-sm th,
+  .panel-page .table-sm td {
+    padding: .4rem .5rem;
+    white-space: nowrap;
+  }
+
+  /* Card: Gráfico */
+  .panel-page .card-charts {
+    min-height: auto;
+  }
+  .panel-page .chart-header h3 {
+    font-size: 1rem;
+    text-align: center;
+  }
+  #chartWrap {
+    position: relative;
+    height: 240px;
+  }
+
+  /* Card: Subcomandos */
+  .card-subcmd h3 {
+    font-size: 1rem;
+    text-align: center;
+  }
+  #subcmdList {
+    grid-template-columns: 1fr 1fr;   /* 2 columnas en mobile */
+    gap: .5rem;
+  }
+  .subcmd-item {
+    padding: .6rem;
+  }
+  .subcmd-bar {
+    height: 14px;
+  }
+  .subcmd-pct {
+    font-size: .75rem;
+  }
+
+  /* Tipografía y espaciado general */
+  body.panel-page {
+    font-size: .9rem;
+  }
+
+  /* KPI */
+  .kpi {
+    font-size: .85rem;
+    padding: .4rem .6rem;
+  }
+
+  /* Botón pequeño */
+  .btn-small {
+    font-size: .85rem;
+    padding: .4rem .6rem;
+  }
+}
+
+
+/* FIX: eliminar el espacio blanco al final del card de resultados */
+.panel-page .card-results {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: unset;
+}
+
+.panel-page .card-results table {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: none;
+  background: #0b1424 !important; /* mantiene el fondo oscuro */
+}
+
+.panel-page .card-results tbody {
+  background: #0b1424 !important;
+}
+
+
+/* ===============================
+   NAVBAR — MOBILE LATERAL (ANIMADO)
+   =============================== */
+@media (max-width: 768px) {
+
+  .header-nav {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #31b8f0;
+    padding: 0.8rem 1rem;
+    border-radius: 0;
+    z-index: 1001;
+  }
+
+  /* Botón ☰ */
+  .menu-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.8rem;
+    cursor: pointer;
+    z-index: 1002;
+    transition: transform 0.3s ease;
+  }
+  .menu-toggle:hover { transform: scale(1.1); }
+
+  /* Fondo oscuro semitransparente */
+  .menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+  }
+  .menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Panel lateral derecho */
+  .header-nav .links {
+    position: fixed;
+    top: 0;
+    right: -260px;              /* fuera de pantalla */
+    width: 240px;
+    height: 100vh;
+    background: #0b1424;
+    box-shadow: -4px 0 12px rgba(0,0,0,.5);
+    border-left: 1px solid #233044;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 4rem 1rem 1rem;
+    transition: right 0.35s ease;
+    z-index: 1001;
+  }
+
+  /* Animación de entrada */
+  .header-nav.active .links {
+    right: 0;                   /* se despliega */
+  }
+
+  /* Estilo de los enlaces */
+  .header-nav .links a {
+    width: 100%;
+    color: #e5e7eb;
+    font-weight: 700;
+    padding: 0.7rem 0.6rem;
+    border-radius: 8px;
+    transition: background 0.2s ease, padding-left 0.2s ease;
+  }
+  .header-nav .links a:hover {
+    background: #162033;
+    padding-left: 1rem;
+  }
+  .header-nav .links a[aria-current="page"] {
+    background: #31b8f0;
+    color: #0b1220;
+  }
+}
+
+/* ===============================
+   GRAFICOS — ESTILO PANEL OSCURO
+   =============================== */
+
+.graficos-page {
+  background: #0b1220 !important;
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+.graficos-page main.container {
+  max-width: 1400px;
+  margin: 1.2rem auto;
+  padding: 0 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* === CARD DE GRAFICO PRINCIPAL === */
+.graficos-page .card.fullchart {
+  background: radial-gradient(circle at top left, #162033, #0b1424 70%);
+  border: 1px solid #233044;
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  padding: 1rem 1.5rem 2rem;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 70vh; /* altura elegante y proporcional */
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.graficos-page .card.fullchart:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.4);
+}
+
+/* === TITULO DEL GRAFICO === */
+.graficos-page .card.fullchart h3 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #93c5fd;
+  margin-bottom: 1rem;
+  text-align: center;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+
+/* === CONTENEDOR DEL CANVAS === */
+.graficos-page .card.fullchart .chartWrap {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.graficos-page .card.fullchart canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100%;
+  aspect-ratio: 16/9;
+}
+
+/* === ANIMACIÓN DE APARICIÓN === */
+@keyframes fadeSlideIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.graficos-page .card.fullchart {
+  animation: fadeSlideIn 0.6s ease both;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .graficos-page main.container {
+    padding: 0.8rem;
+    gap: 1.2rem;
+  }
+
+  .graficos-page .card.fullchart {
+    height: 55vh;
+    padding: 0.8rem 1rem 1.4rem;
+    border-radius: 10px;
+  }
+
+  .graficos-page .card.fullchart h3 {
+    font-size: 1.1rem;
+    margin-bottom: .8rem;
+  }
+
+  .graficos-page .card.fullchart canvas {
+    aspect-ratio: 1/1;
+    max-height: 80%;
+  }
+}
+
+/* ===============================
+   RESULTADOS MOBILE — Cards suaves
+   =============================== */
+@media (max-width: 768px) {
+  .cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .8rem;
+    margin-top: 1rem;
+  }
+
+  .card-partido {
+    background: #0b1424;
+    border: 1px solid #233044;
+    border-radius: 12px;
+    padding: .8rem 1rem;
+    color: #e5e7eb;
+    box-shadow: 0 3px 10px rgba(0,0,0,.25);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+
+  .card-partido:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  }
+
+  .card-partido .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .6rem;
+  }
+
+  .card-partido .nombre {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #93c5fd;
+    line-height: 1.3;
+  }
+
+  .card-partido .mini-tabla {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+
+  .card-partido .fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: .92rem;
+  }
+
+  .card-partido .fila span {
+    color: #a8c5ff;
+  }
+
+  .card-partido .fila strong {
+    color: #e5f4ff;
+    font-weight: 800;
+  }
+}
+
+/* ===============================
+   RESULTADOS — Mostrar solo cards en mobile
+   =============================== */
+@media (max-width: 768px) {
+  /* Oculta la tabla y su contenedor */
+  .resultados-page .table-wrapper {
+    display: none !important;
+  }
+
+  /* Muestra las cards */
+  .resultados-page #cardsResultados {
+    display: grid !important;
+  }
+}
+
+/* En pantallas chicas: texto más grande y centrado */
+@media (max-width: 768px) {
+  .resultados-page .card .meta {
+    text-align: center;
+    margin-top: .5rem;
+  }
+  .resultados-page .card .meta .kpi {
+    display: inline-block;
+    font-size: 1.1rem;
+    padding: .7rem 1.2rem;
+  }
+}
+
+/* ===============================
+   RESULTADOS — KPI debajo del título en mobile
+   =============================== */
+@media (max-width: 768px) {
+  /* Cambia la disposición del encabezado */
+  .resultados-page .card-head {
+    flex-direction: column;      /* apila título y KPI */
+    align-items: center;         /* centra horizontalmente */
+    gap: .4rem;                  /* pequeño espacio entre ellos */
+    text-align: center;
+  }
+
+  /* Asegura que el KPI use todo el ancho disponible */
+  .resultados-page .card .meta {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Ajuste fino del texto KPI */
+  .resultados-page .card .meta .kpi {
+    display: inline-block;
+    font-size: 1rem;
+    padding: .5rem 1rem;
+    white-space: normal;         /* permite salto si es muy largo */
+    line-height: 1.3;
+    text-align: center;
+  }
+}
+
+/* === RESTAURA EL TEMA CLARO EN PANEL OPERADOR === */
+body.panel-operador {
+  background: #f2f3f5 !important;
+  color: #222 !important;
+}
+
+body.panel-operador main {
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1) !important;
+  border-radius: 12px !important;
+}
+
+body.panel-operador fieldset,
+body.panel-operador table,
+body.panel-operador .tabla_telegrama,
+body.panel-operador input,
+body.panel-operador select {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #ccc !important;
+}
+
+body.panel-operador legend {
+  background: #31b8f0 !important;
+  color: #fff !important;
+}
+
+body.panel-operador .card-partido {
+  background: #fff !important;
+  color: #b4b4b4 !important;
+}
+
+/* === UNIFICAR ESTILO DE PARTIDOS Y DESTACAR SOLO FUERZA PATRIA === */
+
+/* Estilo base: todos con negro más suave (#333) como los números */
+body.panel-operador #tabla_votos td.col-agrupa,
+body.panel-operador .card-header .nombre {
+  font-weight: 700;
+  color: #333; /* mismo tono que los números */
+}
+
+/* Excepción: resalta "ALIANZA FUERZA PATRIA" */
+body.panel-operador #tabla_votos td.col-agrupa strong,
+body.panel-operador .card-header .nombre strong {
+  font-weight: 900;
+  color: #000;
+}
 

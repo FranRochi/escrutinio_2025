@@ -3,7 +3,6 @@ from django.urls import path
 from django.shortcuts import redirect
 from . import views
 from elecciones import views as v
-
 # 👇 Import del refresh de JWT
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -53,7 +52,7 @@ urlpatterns = [
 
     # SECCIONES / CIRCUITOS  
     path("api/panel/secciones/", views.api_secciones, name="api_secciones"),
-    path("api/panel/circuitos/", views.api_circuitos, name="api_circuitos"),
+    #path("api/panel/circuitos/", views.api_circuitos, name="api_circuitos"),
     path("api/panel/circuitos_diputados/", views.api_circuitos_diputados, name="api_circuitos_diputados"),
 
     # paneles por secciones y circuitos
@@ -69,7 +68,7 @@ urlpatterns = [
     path("export_adherentes_pdf/", views.export_adherentes_pdf, name="export_adherentes_pdf"),
 
     #EXCEL CIRCUITOS
-    path("export/circuitos/", views.export_circuitos_excel, name="export_circuitos_excel"),
+    #path("export/circuitos/", views.export_circuitos_excel, name="export_circuitos_excel"),
     path("export/circuitos_diputados/", views.export_circuitos_excel_diputados, name="export_circuitos_excel_diputados"),
 
     # EXCEL SUBCOMANDOS
@@ -79,7 +78,7 @@ urlpatterns = [
     path('panel/subcomandos/', views.panel_subcomandos, name='panel_subcomandos'),
     path("api/panel/subcomandos/", views.api_subcomandos, name="api_subcomandos"),
     path("api/panel/subcomando/<str:nombre>/", views.api_subcomando_detalle, name="api_subcomando_detalle"),
-    path("api/panel/subcomandos_concejales/", views.api_subcomandos_concejales, name="api_subcomandos_concejales"),
+    #path("api/panel/subcomandos_concejales/", views.api_subcomandos_concejales, name="api_subcomandos_concejales"),
     path("api/panel/subcomandos_diputados/", views.api_subcomandos_diputados, name="api_subcomandos_diputados"),
 
     #DESCARGA EXCEL TOTAL MESAS

@@ -1,334 +1,169 @@
+// panelista.js — Panel de resultados (Diputados Nacionales, top 4 y subcomandos estilo anterior)
+
 (() => {
-  // ===== util =====
-  const $ = s => document.querySelector(s);
-  const fmtInt = n => Number(n || 0).toLocaleString('es-AR');
-  const fmtPct1 = n =>
-    (Number(n) || 0).toLocaleString('es-AR', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1
-    });
+  "use strict";
 
-  async function getJSON(url) {
-    const r = await fetch(url, { cache: 'no-cache' });
-    if (!r.ok) throw new Error(`HTTP ${r.status} en ${url}`);
-    return r.json();
+  const API_SUMMARY = "/api/panel/summary/?cargo=Diputados Nacionales";
+  const API_SUBCOMANDOS = "/api/panel/subcomandos_diputados/";
+  const API_EXPORT_DIP = "/export/mesas_por_cargo.xlsx";
+
+  let chartDip = null;
+  const $ = (s, ctx = document) => ctx.querySelector(s);
+
+  // ====== Cargar resumen general ======
+  async function cargarResumen() {
+    try {
+      const res = await fetch(API_SUMMARY, { cache: "no-cache" });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+
+      renderTabla(data.partidos);
+      renderGrafico(data.partidos);
+      $("#kpiMesas").textContent = `${data.mesas_escrutadas} / ${data.total_mesas}`;
+      $("#status").textContent = `Actualizado: ${data.timestamp}`;
+    } catch (err) {
+      console.error("Error cargando resumen", err);
+      $("#status").textContent = "Error al cargar datos.";
+    }
   }
 
-  // Spinner en el botón Actualizar
-  function setBusy(on) {
-    const b = $("#btnRefresh");
-    if (!b) return;
-    b.classList.toggle("is-busy", !!on);
-  }
-
-  // Trae el resumen por cargo
-  async function fetchCargo(key) {
-    const qs =
-      typeof key === "number"
-        ? `cargo_id=${key}`
-        : `cargo=${encodeURIComponent(key)}`;
-    return getJSON(`/api/panel/summary/?${qs}`);
-  }
-
-  // ===== Render tabla combinada (Diputados + Concejales) =====
-  function renderTable(dip, con) {
-    const tbody = document.querySelector("#tabla tbody");
-    if (!tbody) return;
+  // ====== Tabla: solo top 4 ======
+  function renderTabla(partidos) {
+    const tbody = $("#tabla tbody");
     tbody.innerHTML = "";
+    if (!Array.isArray(partidos)) return;
 
-    const map = {};
-    dip.partidos.forEach((p) => {
-      map[p.partido_id] = {
-        nombre: p.partido,
-        dip: p,
-        con: { votos: 0, porcentaje: 0 },
-      };
-    });
-    con.partidos.forEach((p) => {
-      if (!map[p.partido_id]) {
-        map[p.partido_id] = {
-          nombre: p.partido,
-          dip: { votos: 0, porcentaje: 0 },
-          con: p,
-        };
-      } else {
-        map[p.partido_id].con = p;
-      }
-    });
-
-    const filas = Object.values(map).sort(
-      (a, b) => b.dip.votos + b.con.votos - (a.dip.votos + a.con.votos)
-    );
-
-    const limitAttr = document.querySelector("#tabla")?.dataset.limit;
-    const limite = limitAttr ? Number(limitAttr) : filas.length;
-
-    filas.slice(0, limite).forEach((row) => {
+    const top = partidos.slice(0, 4);
+    top.forEach((p, i) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="td-left">${row.nombre}</td>
-        <td>${fmtInt(row.dip.votos)}</td>
-        <td>${row.dip.porcentaje}%</td>
-        <td>${fmtInt(row.con.votos)}</td>
-        <td>${row.con.porcentaje}%</td>
+        <td class="th-left">${i + 1}. ${p.partido}</td>
+        <td>${p.votos.toLocaleString("es-AR")}</td>
+        <td>${p.porcentaje.toFixed(2)}%</td>
       `;
       tbody.appendChild(tr);
     });
   }
 
-  // ===== Render gráfico horizontal con % en las barras =====
-  function renderSingleChart(canvasId, label, rows) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+  // ====== Gráfico: solo top 4 ======
+  function renderGrafico(partidos) {
+    if (!Array.isArray(partidos)) return;
 
-    if (!rows || rows.length === 0) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.font = "bold 14px system-ui, sans-serif";
-      ctx.fillStyle = "#94a3b8";
-      ctx.textAlign = "center";
-      ctx.fillText("Sin datos", canvas.width / 2, canvas.height / 2);
-      return;
-    }
+    const top = partidos.slice(0, 4);
+    const ctx = $("#grafico_dipu");
+    if (!ctx) return;
 
-    const labels = rows.map((r) =>
-      r.partido.length > 25 ? r.partido.slice(0, 25) + "…" : r.partido
-    );
-    const data = rows.map((r) => r.votos);
-    const total = data.reduce((a, b) => a + (Number(b) || 0), 0);
+    const labels = top.map(p => p.partido);
+    const dataVals = top.map(p => p.porcentaje);
 
-    new Chart(ctx, {
+    if (chartDip) chartDip.destroy();
+
+    chartDip = new Chart(ctx, {
       type: "bar",
       data: {
         labels,
         datasets: [
-          { label, data, backgroundColor: "#3b82f6" }
+          {
+            label: "% de votos",
+            data: dataVals,
+            backgroundColor: [
+              "#0040fffb",
+              "rgba(0, 200, 83, 0.7)",
+              "rgba(255, 193, 7, 0.7)",
+              "rgba(244, 67, 54, 0.7)",
+            ],
+            borderColor: "rgba(255, 255, 255, 0.4)",
+            borderWidth: 1,
+          },
         ],
       },
       options: {
         indexAxis: "y",
         responsive: true,
-        maintainAspectRatio: false,
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 100, // 👈 escala de 0 a 100
+            ticks: {
+              color: "#ccc",
+              callback: value => value + "%",
+            },
+            grid: { color: "#333" },
+          },
+          y: { ticks: { color: "#ccc" }, grid: { color: "#333" } },
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (c) => {
-                const v = c.parsed.x;
-                const pct = total ? fmtPct1((v * 100) / total) : "0.0";
-                return `${fmtInt(v)} votos (${pct}%)`;
-              },
+              label: ctx => `${ctx.parsed.x.toFixed(2)}%`,
             },
           },
         },
-        scales: {
-          x: {
-            ticks: { color: "#94a3b8" },
-            grid: { color: "rgba(148,163,184,.15)" },
-          },
-          y: {
-            ticks: { color: "#94a3b8" },
-            grid: { color: "rgba(148,163,184,.15)" },
-          },
-        },
       },
-      plugins: [
-        {
-          id: "barLabels",
-          afterDatasetsDraw(chart) {
-            const { ctx } = chart;
-            ctx.save();
-            chart.data.datasets.forEach((ds, di) => {
-              const meta = chart.getDatasetMeta(di);
-              meta.data.forEach((elem, idx) => {
-                const v = ds.data[idx];
-                if (!v) return;
-                const pct = total ? fmtPct1((v * 100) / total) : "0.0";
-                ctx.fillStyle = "#e5e7eb";
-                ctx.font = "bold 11px system-ui";
-                ctx.textAlign = "left";
-                ctx.textBaseline = "middle";
-                ctx.fillText(`${fmtInt(v)} (${pct}%)`, elem.x + 6, elem.y);
-              });
-            });
-            ctx.restore();
-          },
-        },
-      ],
     });
   }
 
-  // ===== Subcomandos =====
-  async function fetchSubcommands() {
-    const tries = [
-      "/api/panel/subcomandos/",
-      "/api/panel/subcomandos/metadata/",
-      "/api/panel/subcomando/metadata/",
-      "/api/panel/subcommands/",
-    ];
-    for (const url of tries) {
-      try {
-        const data = await getJSON(url);
-        if (data) return data;
-      } catch (e) {}
-    }
-    return null;
-  }
-
-  function normalizeSubcmdPayload(payload) {
-    if (!payload) return [];
-    const list = Array.isArray(payload)
-      ? payload
-      : payload.items || payload.data || payload.results || [];
-    return (list || []).map((it) => {
-      const nombre =
-        it.nombre || it.name || it.subcomando || it.label || "—";
-      const escru =
-        it.escrutadas ??
-        it.mesas_escrutadas ??
-        it.escrutado ??
-        it.done ??
-        0;
-      const total =
-        it.total ??
-        it.total_mesas ??
-        it.mesas ??
-        it.cantidad ??
-        0;
-      let pct =
-        it.porcentaje ?? it.pct ?? (total ? (escru * 100) / total : 0);
-      pct = Number.isFinite(+pct) ? +pct : 0;
-      return { nombre, escru: +escru || 0, total: +total || 0, pct };
-    });
-  }
-
-  function renderSubcommands(list) {
-    const el = document.getElementById("subcmdList");
-    el.innerHTML = "";
-
-    list.forEach((item) => {
-      const li = document.createElement("li");
-      li.className = "subcmd-item";
-      li.innerHTML = `
-        <div class="subcmd-row">
-          <span class="subcmd-name">${item.nombre}</span>
-          <span class="subcmd-val">${item.escru}/${item.total}</span>
-        </div>
-        <div class="subcmd-bar">
-          <div class="subcmd-fill" style="--pct:${item.pct}%"></div>
-          <span class="subcmd-pct">${item.pct.toFixed(1)}%</span>
-        </div>
-      `;
-      el.appendChild(li);
-    });
-  }
-
-  // ===== Usuarios + KPI =====
-  async function renderUsersAndKPI() {
+  // ====== Subcomandos (idéntico al estilo clásico del dashboard anterior) ======
+  async function cargarSubcomandos() {
     try {
-      const [usersRes, meta] = await Promise.all([
-        getJSON(`/api/panel/online-users/`),
-        getJSON(`/api/panel/metadata/`),
-      ]);
+      const res = await fetch(API_SUBCOMANDOS, { cache: "no-cache" });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
 
-      const listRaw = usersRes.users || usersRes.online_users || [];
-      const list = listRaw.map((u) =>
-        typeof u === "string" ? { username: u, online: true } : u
-      );
-      const onlineCount = list.filter((u) => u.online).length;
-      const totalCount =
-        typeof usersRes.total === "number" ? usersRes.total : list.length || 100;
+      const list = $("#subcmdList");
+      list.innerHTML = "";
 
-      const ul = $("#users");
-      if (ul) {
-        ul.innerHTML = "";
-        list.forEach((u) => {
-          const li = document.createElement("li");
-          li.innerHTML = `<span class="online-dot ${
-            u.online ? "online" : "offline"
-          }"></span>${u.username}`;
-          ul.appendChild(li);
-        });
-      }
+      const items = data.items || data || [];
 
-      const usersTitle = document.querySelector(".card-users h3");
-      if (usersTitle) {
-        usersTitle.textContent = `Usuarios conectados (${onlineCount}/${totalCount})`;
-      }
+      // Respetar orden del backend (sin sort en el JS)
+      items.forEach(sub => {
+        const pct = Number(sub.porcentaje || 0);
+        const total = sub.total || 0;
+        const esc = sub.escrutadas || 0;
 
-      const kpis = $("#kpiMesas");
-      if (kpis && meta) {
-        const total = meta.total_mesas ?? meta.total ?? 0;
-        const escru = meta.mesas_escrutadas ?? meta.escrutadas ?? 0;
-        const pct = Number(meta.porcentaje_escrutadas ?? meta.pct ?? 0);
-        const pctTxt = Number.isFinite(pct) ? pct.toFixed(2) : pct;
-
-        kpis.textContent = total ? `${escru}/${total} (${pctTxt}%)` : "—";
-        const clamped = Math.max(0, Math.min(100, pct));
-        kpis.style.setProperty("--pct", `${clamped}%`);
-        kpis.classList.add("kpi-bar");
-      }
+        const div = document.createElement("div");
+        div.className = "subcmd-box";
+        div.innerHTML = `
+          <div class="subcmd-title">${sub.nombre}</div>
+          <div class="progress-bar">
+            <div class="fill" style="width:${pct.toFixed(1)}%;
+                background: linear-gradient(90deg, #1e88e5, #31b8f0);"></div>
+            <span class="pct-label">${esc}/${total} mesas (${pct.toFixed(1)}%)</span>
+          </div>
+        `;
+        list.appendChild(div);
+      });
     } catch (err) {
-      console.error("Usuarios/KPI:", err);
+      console.error("Error cargando subcomandos", err);
     }
   }
 
-  // ===== Ciclo principal =====
-  async function refreshAll() {
-    try {
-      setBusy(true);
 
-      const [dip, con] = await Promise.all([
-        fetchCargo("DIPUTADOS"),
-        fetchCargo("CONCEJALES"),
-      ]);
+  // ====== Descargar Excel ======
+  function descargarExcel() {
+    window.location.href = API_EXPORT_DIP;
+  }
 
-      renderTable(dip, con);
-
-      renderSingleChart("grafico_dipu", "Diputados", dip.partidos.slice(0, 3));
-      renderSingleChart("grafico_conce", "Concejales", con.partidos.slice(0, 3));
-
-      await renderUsersAndKPI();
-
-      const subcmdRaw = await fetchSubcommands();
-      const subcmds = normalizeSubcmdPayload(subcmdRaw);
-      renderSubcommands(subcmds);
-
-      $("#status") &&
-        ($("#status").textContent = `Última actualización: ${
-          dip.timestamp || con.timestamp || ""
-        }`);
-    } catch (e) {
-      console.error(e);
-      $("#status") &&
-        ($("#status").textContent = "Error al actualizar");
-    } finally {
-      setBusy(false);
+  // ====== Auto-refresh ======
+  function setupAutoRefresh() {
+    const sel = $("#refreshEvery");
+    let timer = null;
+    function applyInterval() {
+      const val = parseInt(sel.value, 10);
+      if (timer) clearInterval(timer);
+      if (val > 0) timer = setInterval(cargarResumen, val * 1000);
     }
+    sel.addEventListener("change", applyInterval);
+    applyInterval();
   }
 
-  // ===== Auto refresh =====
-  let timer = null;
-  function programarAuto() {
-    if (timer) clearInterval(timer);
-    const s = Number($("#refreshEvery")?.value || 0);
-    if (s > 0) timer = setInterval(refreshAll, s * 1000);
-  }
-
-  // ===== Eventos =====
-  $("#btnRefresh")?.addEventListener("click", refreshAll);
-  $("#refreshEvery")?.addEventListener("change", programarAuto);
-
-  $("#btnDescargarDip")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location = `/export/summary.xlsx?cargo=DIPUTADOS`;
+  // ====== Init ======
+  document.addEventListener("DOMContentLoaded", () => {
+    $("#btnRefresh")?.addEventListener("click", cargarResumen);
+    $("#btnDescargarDip")?.addEventListener("click", descargarExcel);
+    cargarResumen();
+    cargarSubcomandos();
+    setupAutoRefresh();
   });
-  $("#btnDescargarCon")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location = `/export/summary.xlsx?cargo=CONCEJALES`;
-  });
-
-  // Init
-  refreshAll();
-  programarAuto();
 })();

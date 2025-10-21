@@ -20,6 +20,13 @@
   <header class="container">
     <nav class="header-nav">
       <div><strong>Sistema de Escrutinio</strong></div>
+
+      <!-- Botón hamburguesa -->
+      <button class="menu-toggle" onclick="toggleMenuMobile()">☰</button>
+
+      <!-- Fondo oscuro del menú lateral -->
+      <div class="menu-overlay" id="menuOverlay" onclick="closeMenuMobile()"></div>
+
       <div class="links">
         {# --- Menú según rol --- #}
         {% if request.user.is_authenticated %}
@@ -97,6 +104,18 @@
       }
     })();
   </script>
+
+  <script>
+    function toggleMenuMobile() {
+      document.querySelector('.header-nav').classList.toggle('active');
+      document.getElementById('menuOverlay').classList.toggle('active');
+    }
+    function closeMenuMobile() {
+      document.querySelector('.header-nav').classList.remove('active');
+      document.getElementById('menuOverlay').classList.remove('active');
+    }
+  </script>
+
   {% endif %}
 
   {% block extra_scripts %}{% endblock %}

@@ -16,26 +16,28 @@
       </div>
     </div>
 
-    <table id="tablaFull" class="table table-sm">
-      <thead>
-        <tr class="thead-group">
-          <th rowspan="2" class="th-left">Partido</th>
-          <th colspan="2">Diputados</th>
-          <th colspan="2">Concejales</th>
-        </tr>
-        <tr class="thead-sub">
-          <th>Votos</th><th>%</th>
-          <th>Votos</th><th>%</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-wrapper">
+      <table id="tablaFull" class="table table-sm">
+        <thead>
+          <tr class="thead-group">
+            <th rowspan="2" class="th-left">Partido</th>
+            <th colspan="2">Diputados</th>
+          </tr>
+          <tr class="thead-sub">
+            <th>Votos</th><th>%</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
+    <div id="cardsResultados" class="cards-grid only-mobile"></div>
+
+      
     <div class="actions-row">
       <a href="{% url 'panel_dashboard' %}" class="btn-small">&laquo; Volver al panel</a>
       <div class="right">
         <a href="/export/summary.xlsx?cargo=DIPUTADOS" class="btn-export">Excel Diputados</a>
-        <a href="/export/summary.xlsx?cargo=CONCEJALES" class="btn-export">Excel Concejales</a>
         <a href="{% url 'export_mesas_por_cargo_excel' %}"class="btn-export">Descargar Mesas</a>
       </div>
     </div>

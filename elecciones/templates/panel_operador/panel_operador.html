@@ -2,38 +2,40 @@
 {% load custom_filters %}
 {% load static %}
 
+{% block body_class %}panel-operador{% endblock %}
+
 {% block content %}
+<h2 class="page-title">Telegrama de carga de votos - Diputados Nacionales</h2>
 
-<h2 class="page-title">Telegrama de carga de votos</h2>
-
-<!-- Overlay de guardado (feedback visual) -->
+<!-- Overlay visual de guardado -->
 <style>
-  .saving-overlay{position:fixed;inset:0;background:rgba(255,255,255,.6);
-    display:flex;align-items:center;justify-content:center;font-weight:600;
-    font-size:1.1rem;z-index:9999}
-  .saving-overlay[hidden]{display:none;}
+  .saving-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,.6);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 1.1rem; z-index: 9999;
+  }
+  .saving-overlay[hidden] { display: none; }
 </style>
 <div id="saving_overlay" class="saving-overlay" hidden>Guardando mesa…</div>
 
-<!-- Contenedor de notificaciones sutiles -->
+<!-- Contenedor de notificaciones -->
 <div id="noti-container" class="noti-container"></div>
 
 <form method="POST">
   {% csrf_token %}
 
-  <!-- DATOS DE MESA + TABLA SECUNDARIA -->
+  <!-- =============================
+       DATOS DE LA MESA + RESUMEN
+       ============================= -->
   <div class="mesa-datos-container">
     <!-- DATOS -->
     <fieldset class="resumen-mesa">
       <legend>Datos de la mesa</legend>
-
       <table class="tabla_telegrama">
         <tbody>
           <tr>
             <td>Escuela</td>
-            <td>
-              <input type="text" value="{{ escuela_nombre }}" readonly class="w-100">
-            </td>
+            <td><input type="text" value="{{ escuela_nombre }}" readonly class="w-100"></td>
           </tr>
           <tr>
             <td>Mesa</td>
@@ -51,7 +53,6 @@
           </tr>
         </tbody>
       </table>
-
       <input type="hidden" id="mesa_id" name="mesa_id">
     </fieldset>
 
@@ -59,221 +60,144 @@
     <fieldset class="resumen-mesa">
       <legend>Resumen de la mesa</legend>
       <table class="tabla_telegrama">
-        <thead>
-          <tr>
-            <th></th>
-            <th>En N°</th>
-          </tr>
-        </thead>
+        <thead><tr><th></th><th>En N°</th></tr></thead>
         <tbody>
           <tr>
             <td>Cantidad de electores que han votado</td>
-            <td><input type="number" id="electores_votaron" name="total_votantes" class="input_corto" required></td>
+            <td><input type="number" id="electores_votaron" name="total_votantes" required></td>
           </tr>
           <tr>
-            <td>Cantidad de sobres utilizados en la urna</td>
-            <td><input type="number" id="sobres_encontrados" name="sobres_utilizados" class="input_corto" required></td>
+            <td>Cantidad de boletas (BUP) en la urna</td>
+            <td><input type="number" id="sobres_encontrados" name="sobres_utilizados" required></td>
           </tr>
           <tr>
             <td>Diferencia</td>
-            <td><input type="number" id="diferencia_sobres" name="diferencia_sobres" class="input_corto" required></td>
+            <td><input type="number" id="diferencia_sobres" name="diferencia_sobres" required></td>
           </tr>
         </tbody>
       </table>
     </fieldset>
   </div>
 
-  <!-- =========================
-       MODO MÓVIL: TARJETAS
-       ========================= -->
+  <!-- =============================
+       MODO MÓVIL (tarjetas)
+       ============================= -->
   <div class="only-mobile">
-
-    <!-- DIPUTADOS PROVINCIALES -->
     <section class="cargo-cards">
-      <h3 class="cargo-title">Diputados Provinciales</h3>
+      <h3 class="cargo-title">Diputados Nacionales</h3>
 
+      <!-- Partidos -->
       <div id="cards_diputados" class="cards-grid">
         {% for grupo in partidos_map %}
-          {% for cargo in cargos %}
-            {% if cargo.nombre_postulacion == "Diputados Provinciales" %}
-              {% with candidatura=grupo.candidaturas|dict_key:cargo.id %}
-                {% if candidatura %}
-                  <article class="card-partido">
-                    <div class="card-header">
-                      <div class="num">{{ grupo.partido.numero_lista }}</div>
-                      <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
-                    </div>
-                    <div class="card-body">
-                      <label class="sr-only" for="v_{{ candidatura.id }}">Votos</label>
-                      <input id="v_{{ candidatura.id }}"
-                            type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                            class="voto_input"
-                            data-cargo="{{ cargo.id }}"
-                            data-partido="{{ candidatura.id }}"
-                            oninput="calcularTotales()"
-                            placeholder="000">
-                    </div>
-                  </article>
-                {% else %}
-                  <!-- Card para los que NO postulan (Diputados - móvil) -->
-                  <article class="card-partido no-postula" aria-disabled="true">
-                    <div class="card-header">
-                      <div class="num">{{ grupo.partido.numero_lista }}</div>
-                      <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
-                      <span class="badge-no-postula">No postula</span>
-                    </div>
-                    <div class="card-body">
-                      <div class="no-usa">(no usar)</div>
-                    </div>
-                  </article>
-                {% endif %}
-              {% endwith %}
-            {% endif %}
-          {% endfor %}
-        {% endfor %}
-      </div>
-
-      <!-- Especiales -->
-      <div class="especiales-grid">
-        {% for cargo in cargos %}
-          {% if cargo.nombre_postulacion == "Diputados Provinciales" %}
-            {% for tipo in tipos_voto_especial %}
-              <div class="esp-item">
-                <label>Votos {{ tipo|title }}</label>
-                <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                       class="voto_especial_input"
-                       data-cargo="{{ cargo.id }}"
-                       data-tipo="{{ tipo }}"
-                       oninput="calcularTotales()"
-                       placeholder="000">
+          {% if grupo.candidatura %}
+            <article class="card-partido">
+              <div class="card-header">
+                <div class="num">{{ grupo.partido.numero_lista }}</div>
+                <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
               </div>
-            {% endfor %}
-          {% endif %}
-        {% endfor %}
-      </div>
-
-      <!-- Totales -->
-      <div class="totales-cargo">
-        {% for cargo in cargos %}
-          {% if cargo.nombre_postulacion == "Diputados Provinciales" %}
-            <div class="total-row">
-              <span>Total votos agrupaciones políticas</span>
-              <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                     data-total-cargo="{{ cargo.id }}" readonly placeholder="000">
-            </div>
-            <div class="total-row">
-              <span>SUMA TOTAL DE VOTOS</span>
-              <input type="number" id="total_agrupaciones_{{ cargo.id }}">
-            </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </section>
-
-    <!-- CONCEJALES -->
-    <section class="cargo-cards">
-      <h3 class="cargo-title">Concejales</h3>
-
-      <div id="cards_concejales" class="cards-grid">
-        {% for grupo in partidos_map %}
-          {% for cargo in cargos %}
-            {% if cargo.nombre_postulacion == "Concejales" %}
-              {% with candidatura=grupo.candidaturas|dict_key:cargo.id %}
-                {% if candidatura %}
-                  <article class="card-partido">
-                    <div class="card-header">
-                      <div class="num">{{ grupo.partido.numero_lista }}</div>
-                      <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
-                    </div>
-                    <div class="card-body">
-                      <label class="sr-only" for="v_{{ candidatura.id }}">Votos</label>
-                      <input id="v_{{ candidatura.id }}"
-                            type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                            class="voto_input"
-                            data-cargo="{{ cargo.id }}"
-                            data-partido="{{ candidatura.id }}"
-                            oninput="calcularTotales()"
-                            placeholder="000">
-                    </div>
-                  </article>
-                {% else %}
-                  <!-- Card para los que NO postulan -->
-                  <article class="card-partido no-postula" aria-disabled="true">
-                    <div class="card-header">
-                      <div class="num">{{ grupo.partido.numero_lista }}</div>
-                      <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
-                      <span class="badge-no-postula">No postula</span>
-                    </div>
-                    <div class="card-body">
-                      <div class="no-usa">(no usar)</div>
-                    </div>
-                  </article>
-                {% endif %}
-              {% endwith %}
-            {% endif %}
-          {% endfor %}
-        {% endfor %}
-      </div>
-
-      <!-- Especiales -->
-      <div class="especiales-grid">
-        {% for cargo in cargos %}
-          {% if cargo.nombre_postulacion == "Concejales" %}
-            {% for tipo in tipos_voto_especial %}
-              <div class="esp-item">
-                <label>Votos {{ tipo|title }}</label>
-                <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                       class="voto_especial_input"
-                       data-cargo="{{ cargo.id }}"
-                       data-tipo="{{ tipo }}"
-                       oninput="calcularTotales()"
-                       placeholder="000">
+              <div class="card-body">
+                <input
+                  id="v_{{ grupo.candidatura.id }}"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="3"
+                  class="voto_input"
+                  data-cargo="{{ cargo_dip.id }}"
+                  data-partido="{{ grupo.candidatura.id }}"
+                  placeholder="000"
+                >
               </div>
-            {% endfor %}
+            </article>
+          {% else %}
+            <article class="card-partido no-postula" aria-disabled="true">
+              <div class="card-header">
+                <div class="num">{{ grupo.partido.numero_lista }}</div>
+                <div class="nombre">{{ grupo.partido.nombre_partido }}</div>
+                <span class="badge-no-postula">No postula</span>
+              </div>
+              <div class="card-body"><div class="no-usa">(no usar)</div></div>
+            </article>
           {% endif %}
         {% endfor %}
       </div>
 
-      <!-- Totales -->
-      <div class="totales-cargo">
-        {% for cargo in cargos %}
-          {% if cargo.nombre_postulacion == "Concejales" %}
-            <div class="total-row">
-              <span>Total votos agrupaciones políticas</span>
-              <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                     data-total-cargo="{{ cargo.id}}" readonly placeholder="000">
-            </div>
-            <div class="total-row">
-              <span>SUMA TOTAL DE VOTOS</span>
-              <input type="number" id="total_agrupaciones_{{ cargo.id }}">
-            </div>
-          {% endif %}
-        {% endfor %}
+      <!-- Votos especiales -->
+      <div class="especiales-grid">
+        <!-- Total agrupaciones -->
+        <div class="esp-item total">
+          <label><strong>Total votos agrupaciones políticas</strong></label>
+          <input type="text" data-total-cargo="{{ cargo_dip.id }}" readonly placeholder="0000">
+        </div>
+
+        <!-- Nuevos tipos -->
+        <div class="esp-item">
+          <label>Votos Nulos</label>
+          <input type="text"
+                inputmode="numeric"
+                maxlength="3"
+                class="voto_especial_input"
+                data-tipo="nulo"
+                data-cargo="{{ cargo_dip.id }}"
+                placeholder="000">
+        </div>
+
+        <div class="esp-item">
+          <label>Votos Recurridos</label>
+          <input type="text"
+                inputmode="numeric"
+                maxlength="3"
+                class="voto_especial_input"
+                data-tipo="recurrido"
+                data-cargo="{{ cargo_dip.id }}"
+                placeholder="000">
+        </div>
+
+        <div class="esp-item">
+          <label>Votos de Identidad Impugnada</label>
+          <input type="text"
+                inputmode="numeric"
+                maxlength="3"
+                class="voto_especial_input"
+                data-tipo="identidad_impugnada"
+                data-cargo="{{ cargo_dip.id }}"
+                placeholder="000">
+        </div>
+
+        <div class="esp-item">
+          <label>Votos en Blanco</label>
+          <input type="text"
+                inputmode="numeric"
+                maxlength="3"
+                class="voto_especial_input"
+                data-tipo="blanco"
+                data-cargo="{{ cargo_dip.id }}"
+                placeholder="000">
+        </div>
+
+        <!-- Total final -->
+        <div class="esp-item total">
+          <label><strong>Total de votos (*)</strong></label>
+          <input type="number" id="total_agrupaciones_{{ cargo_dip.id }}">
+        </div>
       </div>
+
+
+      <div id="mensaje_validacion"></div>
+      <button type="button" class="btn-enviar-votos">Enviar votos</button>
     </section>
-
-    <div id="mensaje_validacion"></div>
-    <button type="button" class="btn-enviar-votos">Enviar votos</button>
   </div>
-  <!-- /only-mobile -->
 
-  <!-- =========================
-       ESCRITORIO/TABLET (tabla)
-       ========================= -->
+  <!-- =============================
+       MODO ESCRITORIO / TABLET
+       ============================= -->
   <div class="only-landscape">
-    <div class="tabla-votos-wrap">
-      <table border="1" cellpadding="5" cellspacing="0" id="tabla_votos">
+    <div class="tabla-votos-wrap" style="overflow-x:auto; max-width:100%;">
+      <table border="1" cellpadding="5" cellspacing="0" id="tabla_votos" style="margin:auto;">
         <thead>
           <tr>
             <th class="col-index">N°</th>
             <th class="col-agrupa">Agrupación Política</th>
-            {% for cargo in cargos %}
-              {% if cargo.nombre_postulacion == "Diputados Provinciales" or cargo.nombre_postulacion == "Concejales" %}
-                <th class="col-cargo col-cargo-{{ cargo.id }}" data-cargo="{{ cargo.id }}">
-                  {{ cargo.nombre_postulacion }}
-                </th>
-              {% endif %}
-            {% endfor %}
+            <th class="col-cargo" data-cargo="{{ cargo_dip.id }}">Diputados Nacionales</th>
           </tr>
         </thead>
 
@@ -282,26 +206,20 @@
           <tr>
             <td class="col-index">{{ grupo.partido.numero_lista }}</td>
             <td class="col-agrupa">{{ grupo.partido.nombre_partido }}</td>
-
-            {% for cargo in cargos %}
-              {% if cargo.nombre_postulacion == "Diputados Provinciales" or cargo.nombre_postulacion == "Concejales" %}
-                {% with candidatura=grupo.candidaturas|dict_key:cargo.id %}
-                  {% if candidatura %}
-                    <td class="col-cargo col-cargo-{{ cargo.id }}">
-                      <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                             name="votos_{{ candidatura.id }}"
-                             class="voto_input"
-                             data-cargo="{{ cargo.id }}"
-                             data-partido="{{ candidatura.id }}"
-                             oninput="calcularTotales()"
-                             placeholder="000">
-                    </td>
-                  {% else %}
-                    <td class="col-cargo col-cargo-{{ cargo.id }} no-postula">(no usar)</td>
-                  {% endif %}
-                {% endwith %}
+            <td>
+              {% if grupo.candidatura %}
+                <input type="text"
+                      inputmode="numeric"
+                      maxlength="3"
+                      name="votos_{{ grupo.candidatura.id }}"
+                      class="voto_input"
+                      data-cargo="{{ cargo_dip.id }}"
+                      data-partido="{{ grupo.candidatura.id }}"
+                      placeholder="000">
+              {% else %}
+                <div class="no-usa">(no usar)</div>
               {% endif %}
-            {% endfor %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -310,55 +228,44 @@
           <tr>
             <td></td>
             <td><strong>Total votos agrupaciones políticas</strong></td>
-            {% for cargo in cargos %}
-              {% if cargo.nombre_postulacion == "Diputados Provinciales" or cargo.nombre_postulacion == "Concejales" %}
-                <td class="col-cargo col-cargo-{{ cargo.id }}">
-                  <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                         data-total-cargo="{{ cargo.id }}" readonly placeholder="000">
-                </td>
-              {% endif %}
-            {% endfor %}
+            <td><input type="text" data-total-cargo="{{ cargo_dip.id }}" readonly placeholder="0000"></td>
           </tr>
 
-          {% for tipo in tipos_voto_especial %}
+          <!-- NUEVOS TIPOS DE VOTO -->
           <tr>
             <td></td>
-            <td><strong>Votos {{ tipo|title }}</strong></td>
-            {% for cargo in cargos %}
-              {% if cargo.nombre_postulacion == "Diputados Provinciales" or cargo.nombre_postulacion == "Concejales" %}
-                <td class="col-cargo col-cargo-{{ cargo.id }}">
-                  <input type="text" inputmode="numeric" maxlength="3" pattern="\d{0,3}"
-                         name="votos_{{ tipo }}_{{ cargo.id }}"
-                         class="voto_especial_input"
-                         data-tipo="{{ tipo }}"
-                         data-cargo="{{ cargo.id }}"
-                         oninput="calcularTotales()"
-                         placeholder="000">
-                </td>
-              {% endif %}
-            {% endfor %}
+            <td><strong>Votos Nulos</strong></td>
+            <td><input type="text" class="voto_especial_input" data-tipo="nulo" data-cargo="{{ cargo_dip.id }}" placeholder="000"></td>
           </tr>
-          {% endfor %}
+          <tr>
+            <td></td>
+            <td><strong>Votos Recurridos</strong></td>
+            <td><input type="text" class="voto_especial_input" data-tipo="recurrido" data-cargo="{{ cargo_dip.id }}" placeholder="000"></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><strong>Votos de Identidad Impugnada</strong></td>
+            <td><input type="text" class="voto_especial_input" data-tipo="identidad_impugnada" data-cargo="{{ cargo_dip.id }}" placeholder="000"></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><strong>Votos en Blanco</strong></td>
+            <td><input type="text" class="voto_especial_input" data-tipo="blanco" data-cargo="{{ cargo_dip.id }}" placeholder="000"></td>
+          </tr>
 
           <tr>
             <td></td>
-            <td><strong>SUMA TOTAL DE VOTOS</strong></td>
-            {% for cargo in cargos %}
-              {% if cargo.nombre_postulacion == "Diputados Provinciales" or cargo.nombre_postulacion == "Concejales" %}
-                <td class="col-cargo col-cargo-{{ cargo.id }}">
-                  <input type="number" id="total_agrupaciones_{{ cargo.id }}">
-                </td>
-              {% endif %}
-            {% endfor %}
+            <td><strong>Total de votos (*)</strong></td>
+            <td><input type="number" id="total_agrupaciones_{{ cargo_dip.id }}"></td>
           </tr>
         </tfoot>
+
       </table>
     </div>
 
     <div id="mensaje_validacion"></div>
     <button type="button" class="btn-enviar-votos">Enviar votos</button>
   </div>
-  <!-- /only-landscape -->
 
 </form>
 {% endblock %}

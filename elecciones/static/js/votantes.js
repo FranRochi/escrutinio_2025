@@ -1,245 +1,299 @@
-let chartElectores = null;
-let chartAdherentes = null;
-let chartTotales = null;
-let chartEdades = null;
+// operador.js — sin sumas automáticas, sin validaciones cruzadas.
+// Todos los inputs numéricos: solo dígitos, tope 350, muestran 3 cifras.
+// Además, se neutralizan toasts/validaciones viejas y cualquier listener previo.
 
-// ========================
-// Gráficos principales
-// ========================
-async function cargarVotantes() {
-  const r = await fetch("/api/panel/votantes/");
-  const data = await r.json();
+(() => {
+  "use strict";
 
-  // --- Electores ---
-  const canvas1 = document.getElementById("graficoElectores");
-  if (canvas1) {
-    const ctx1 = canvas1.getContext("2d");
-    if (!chartElectores) {
-      chartElectores = new Chart(ctx1, {
-        type: "doughnut",
-        data: {
-          labels: ["Votaron", "No votaron"],
-          datasets: [{
-            data: [data.electores.votaron, data.electores.total - data.electores.votaron],
-            backgroundColor: ["#3b82f6", "#1e293b"],
-          }]
-        },
-        options: {
-          plugins: {
-            legend: { position: "bottom", labels: { color: "#e5e7eb" } },
-            datalabels: {
-              color: "#fff",
-              font: { weight: "bold", size: 12 },
-              formatter: (value, ctx) => {
-                const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                const pct = ((value / sum) * 100).toFixed(1);
-                return `${value} (${pct}%)`;
-              }
-            }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
-    } else {
-      chartElectores.data.datasets[0].data = [
-        data.electores.votaron,
-        data.electores.total - data.electores.votaron
-      ];
-      chartElectores.update();
-    }
-    document.getElementById("infoElectores").textContent =
-      `Total: ${data.electores.total} | Votaron: ${data.electores.votaron}`;
-  }
+  // ===== Config =====
+  const MAX = 350;
+  const API_SAVE_URL = "/api/guardar-votos/";          // ajustá si tu ruta es otra
+  const API_MESA_URL = (id) => `/api/mesa/${id}/`;     // ajustá si tu ruta es otra
 
-  // --- Adherentes ---
-  const canvas2 = document.getElementById("graficoAdherentes");
-  if (canvas2) {
-    const ctx2 = canvas2.getContext("2d");
-    if (!chartAdherentes) {
-      chartAdherentes = new Chart(ctx2, {
-        type: "doughnut",
-        data: {
-          labels: ["Votaron", "No votaron"],
-          datasets: [{
-            data: [data.adherentes.votaron, data.adherentes.total - data.adherentes.votaron],
-            backgroundColor: ["#22c55e", "#1e293b"],
-          }]
-        },
-        options: {
-          plugins: {
-            legend: { position: "bottom", labels: { color: "#e5e7eb" } },
-            datalabels: {
-              color: "#fff",
-              font: { weight: "bold", size: 12 },
-              formatter: (value, ctx) => {
-                const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                const pct = ((value / sum) * 100).toFixed(1);
-                return `${value} (${pct}%)`;
-              }
-            }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
-    } else {
-      chartAdherentes.data.datasets[0].data = [
-        data.adherentes.votaron,
-        data.adherentes.total - data.adherentes.votaron
-      ];
-      chartAdherentes.update();
-    }
-    document.getElementById("infoAdherentes").textContent =
-      `Total: ${data.adherentes.total} | Votaron: ${data.adherentes.votaron}`;
-  }
-}
+  // ===== Utils =====
+  const $  = (s, ctx = document) => ctx.querySelector(s);
+  const $$ = (s, ctx = document) => Array.from(ctx.querySelectorAll(s));
 
-// ========================
-// Gráfico Totales + Edades
-// ========================
-async function cargarVotantesDetalle() {
-  try {
-    const r = await fetch("/api/votantes_detalle/");
-    const data = await r.json();
+  const onlyDigits = (v) => (v || "").replace(/\D+/g, "");
+  const clamp = (n) => Math.min(MAX, Math.max(0, isNaN(n) ? 0 : n));
+  const pad3  = (v) => String(clamp(parseInt(v || 0, 10))).padStart(3, "0");
+  const toInt = (v) => {
+    const d = onlyDigits(String(v ?? ""));
+    return d ? parseInt(d, 10) : 0;
+  };
 
-    // --- Totales Nativos/Extranjeros ---
-    const canvas = document.getElementById("graficoTotales");
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (!chartTotales) {
-        chartTotales = new Chart(ctx, {
-          type: "doughnut",
-          data: {
-            labels: ["Nativos", "Extranjeros"],
-            datasets: [{
-              data: [data.nativos.total, data.extranjeros.total],
-              backgroundColor: ["#3b82f6", "#f97316"],
-            }]
-          },
-          options: {
-            cutout: "70%",
-            plugins: {
-              legend: { position: "bottom", labels: { color: "#e5e7eb" } },
-              datalabels: {
-                color: "#fff",
-                font: { weight: "bold", size: 12 },
-                formatter: (value, ctx) => {
-                  const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                  const pct = ((value / sum) * 100).toFixed(1);
-                  return `${value} (${pct}%)`;
-                }
-              }
-            }
-          },
-          plugins: [ChartDataLabels]
-        });
-      } else {
-        chartTotales.data.datasets[0].data = [
-          data.nativos.total,
-          data.extranjeros.total
-        ];
-        chartTotales.update();
-      }
-      document.getElementById("infoTotales").textContent =
-        `Nativos: ${data.nativos.total} (${data.nativos.porcentaje}%) | ` +
-        `Extranjeros: ${data.extranjeros.total} (${data.extranjeros.porcentaje}%)`;
-    }
+  // ===== CSRF / fetch =====
+  const getCookie = (name) => {
+    const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+    return m ? decodeURIComponent(m[1]) : null;
+  };
 
-    // --- Edades ---
-    const edadesCanvas = document.getElementById("graficoEdades");
-    if (edadesCanvas) {
-      const ctx = edadesCanvas.getContext("2d");
-      const labels = Object.keys(data.edades);
-      const values = Object.values(data.edades);
-
-      if (!chartEdades) {
-        chartEdades = new Chart(ctx, {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [{
-              label: "% de votantes por edad",
-              data: values,
-              backgroundColor: "#10b981"
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { ticks: { color: "#e5e7eb" } },
-              y: { ticks: { color: "#e5e7eb", callback: v => v + "%" } }
-            }
-          }
-        });
-      } else {
-        chartEdades.data.datasets[0].data = values;
-        chartEdades.update();
-      }
-    }
-  } catch (e) {
-    console.error("Error cargando detalle de votantes:", e);
-  }
-}
-
-// ========================
-// Paleta de colores para escuelas
-// ========================
-const coloresEscuelas = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e",
-  "#3b82f6", "#6366f1", "#a855f7", "#ec4899"
-];
-const cacheColores = {};
-
-function colorEscuela(nombre) {
-  if (!cacheColores[nombre]) {
-    const idx = Object.keys(cacheColores).length % coloresEscuelas.length;
-    cacheColores[nombre] = coloresEscuelas[idx];
-  }
-  return cacheColores[nombre];
-}
-
-// ========================
-// Últimos votantes estilo chat
-// ========================
-async function cargarVotantesMarcados() {
-  try {
-    const r = await fetch("/api/votantes_marcados/");
-    const data = await r.json();
-
-    const container = document.getElementById("chat-votantes");
-    container.innerHTML = "";
-
-    if (!data.votantes || data.votantes.length === 0) {
-      container.innerHTML = "<p style='color:#555;'>Nadie marcado aún</p>";
-      return;
-    }
-
-    data.votantes.forEach(v => {
-      const div = document.createElement("div");
-      div.className = "chat-line";
-      div.style.setProperty("--color", colorEscuela(v.escuela));
-      div.innerHTML = `
-        <span class="escuela">${v.escuela}</span>
-        <span class="detalle">Mesa ${v.mesa} — Orden ${v.orden}</span>
-      `;
-      container.appendChild(div);
+  async function postJSON(url, data) {
+    const csrftoken = getCookie("csrftoken");
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrftoken ? { "X-CSRFToken": csrftoken } : {}),
+      },
+      body: JSON.stringify(data),
+      cache: "no-cache",
     });
-    container.scrollTop = container.scrollHeight;
-  } catch (e) {
-    console.error("Error cargando votantes marcados:", e);
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${txt}`);
+    }
+    return res.json().catch(() => ({}));
   }
-}
 
-// ========================
-// Inicialización
-// ========================
-document.addEventListener("DOMContentLoaded", () => {
-  cargarVotantes();
-  setInterval(cargarVotantes, 60000);
+  async function getJSON(url) {
+    const r = await fetch(url, { cache: "no-cache" });
+    if (!r.ok) throw new Error(`HTTP ${r.status} en ${url}`);
+    return r.json();
+  }
 
-  cargarVotantesDetalle();
-  setInterval(cargarVotantesDetalle, 60000);
+  // ===== Anti-interferencias (mata scripts viejos) =====
+  function noop() {}
+  function neutralizeToastsAndGlobals() {
+    // Si hay toastr, anulamos métodos que podrían mostrar el cartelito
+    if (window.toastr) {
+      ["warning", "error", "info", "success"].forEach((m) => (window.toastr[m] = noop));
+      window.toastr.options = {};
+    }
+    // Si dejaron helpers globales para validar/sumar, los anulamos
+    ["validarTotales", "sumarTotales", "checkCap", "controlElectores", "mostrarToast"]
+      .forEach((k) => (window[k] = noop));
+  }
 
-  cargarVotantesMarcados();
-  setInterval(cargarVotantesMarcados, 10000);
-});
+  // Detiene otros listeners (validadores viejos) en fase de captura
+  function suppressForeignHandlers(el, events) {
+    events.forEach((ev) => {
+      el.addEventListener(
+        ev,
+        (e) => {
+          // evitamos que otros handlers salten
+          e.stopImmediatePropagation();
+          // no preventDefault para no romper input normal
+        },
+        true // capture
+      );
+    });
+  }
+
+  // ===== Cableado: numérico + tope + 3 cifras (y bloquea listeners viejos) =====
+  function wireNumericInputs(inputs) {
+    inputs.forEach((inp) => {
+      // Evitar que otros scripts enganchen estos eventos
+      suppressForeignHandlers(inp, ["input", "change", "keyup", "keydown", "keypress", "paste"]);
+
+      // Atributos útiles
+      inp.setAttribute("inputmode", "numeric");
+      inp.setAttribute("maxlength", "3");
+      inp.setAttribute("pattern", "[0-9]*");
+
+      // Al escribir: solo dígitos, máx 3, tope 350 (permitimos vacío mientras escribe)
+      inp.addEventListener("input", () => {
+        const d = onlyDigits(inp.value).slice(0, 3);
+        if (d === "") { inp.value = ""; return; }
+        inp.value = String(clamp(parseInt(d, 10)));
+      });
+
+      // Enfocar: quitar ceros a la izquierda para editar cómodo
+      inp.addEventListener("focus", () => {
+        const d = onlyDigits(inp.value);
+        inp.value = d.replace(/^0+/, "") || "";
+        try { inp.select(); } catch (_) {}
+      });
+
+      // Blur: siempre 3 cifras
+      inp.addEventListener("blur", () => {
+        inp.value = pad3(inp.value);
+      });
+    });
+  }
+
+  // Forzar display con 3 cifras (útil tras precargas)
+  function padInputs3(selector = ".voto_input, .voto_especial_input, .total-manual") {
+    $$(selector).forEach((inp) => (inp.value = pad3(inp.value)));
+  }
+  window.padInputs3 = padInputs3; // por si algún template quiere usarla
+
+  // ===== Campos “totales” que NO deben calcularse solos =====
+  function unlockManualTotals() {
+    // intentamos varios selectores comunes
+    const candidates = [
+      "#total_agrupaciones",
+      "#totalAgrupaciones",
+      "input[name='total_agrupaciones']",
+      ".total-agrupaciones input",
+      "#total_agrup",
+      "#total_validos",
+      "#total_listas",
+      "#total_agrup_politicas",
+      // “Total de votos (*)”
+      "#total_general",
+      "#totalVotos",
+      "input[name='total_votos']",
+      ".total-votos input",
+    ];
+
+    const found = new Set();
+    candidates.forEach((sel) => $$(sel).forEach((el) => found.add(el)));
+
+    // A todo lo que encontramos lo tratamos como input manual “normal”
+    found.forEach((el) => {
+      el.classList.add("total-manual");
+      el.removeAttribute("readonly");
+      el.removeAttribute("disabled");
+    });
+
+    if (found.size) wireNumericInputs(Array.from(found));
+  }
+
+  // ===== Recolección de datos =====
+  function collectPayload() {
+    const mesaId =
+      $("#mesaId")?.value ||
+      document.body.getAttribute("data-mesa-id") ||
+      $("#mesa")?.value ||
+      $("#selectMesa")?.value ||
+      null;
+
+    const votos_cargo = $$(".voto_input").map((inp) => ({
+      partido_postulacion_id: Number(inp.dataset.partido),
+      votos: clamp(toInt(inp.value)),
+    }));
+
+    const votos_especiales = $$(".voto_especial_input").map((inp) => ({
+      tipo: String(inp.dataset.tipo || "").toLowerCase().trim(),
+      cargo_postulacion_id: Number(inp.dataset.cargo),
+      votos: clamp(toInt(inp.value)),
+    }));
+
+    const resumen_mesa = {
+      electores_votaron: toInt($("#electores_votaron")?.value),
+      sobres_encontrados: toInt($("#sobres_encontrados")?.value),
+      diferencia: toInt($("#diferencia")?.value),
+    };
+
+    return {
+      mesa_id: mesaId ? Number(mesaId) : null,
+      votos_cargo,
+      votos_especiales,
+      resumen_mesa,
+    };
+  }
+
+  // ===== Guardar =====
+  async function guardarMesa() {
+    const btn = $("#btnGuardar") || $("#btnEnviar");
+    const msg = $("#statusMsg");
+    const old = btn?.textContent;
+
+    try {
+      if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
+
+      const payload = collectPayload();
+      if (!payload.mesa_id) throw new Error("Falta mesa_id");
+
+      await postJSON(API_SAVE_URL, payload);
+
+      padInputs3();
+
+      if (msg) {
+        msg.textContent = "Guardado correctamente.";
+        msg.classList.remove("is-error");
+        msg.classList.add("is-ok");
+      }
+    } catch (e) {
+      console.error(e);
+      if (msg) {
+        msg.textContent = "Error al guardar la mesa.";
+        msg.classList.add("is-error");
+        msg.classList.remove("is-ok");
+      }
+      alert("No se pudo guardar. Revisá tu conexión e intentá de nuevo.");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = old || "Guardar"; }
+    }
+  }
+  window.operadorGuardar = guardarMesa;
+
+  // ===== Precarga (opcional) =====
+  async function cargarMesa(mesaId) {
+    if (!mesaId) return;
+    try {
+      const data = await getJSON(API_MESA_URL(Number(mesaId)));
+
+      if (Array.isArray(data.votos_cargo)) {
+        data.votos_cargo.forEach((v) => {
+          const inp = document.querySelector(`.voto_input[data-partido="${v.partido_postulacion_id}"]`);
+          if (inp) inp.value = clamp(Number(v.votos || 0));
+        });
+      }
+
+      if (Array.isArray(data.votos_especiales)) {
+        data.votos_especiales.forEach((v) => {
+          const tipo = String(v.tipo || "").toLowerCase().trim();
+          const sel =
+            `.voto_especial_input[data-tipo="${tipo}"]` +
+            (v.cargo_postulacion_id ? `[data-cargo="${v.cargo_postulacion_id}"]` : "");
+          const inp = document.querySelector(sel);
+          if (inp) inp.value = clamp(Number(v.votos || 0));
+        });
+      }
+
+      if (data.resumen) {
+        if ($("#electores_votaron"))   $("#electores_votaron").value   = toInt(data.resumen.electores_votaron);
+        if ($("#sobres_encontrados"))  $("#sobres_encontrados").value  = toInt(data.resumen.sobres_encontrados);
+        if ($("#diferencia"))          $("#diferencia").value          = toInt(data.resumen.diferencia);
+      }
+
+      padInputs3();
+    } catch (e) {
+      console.warn("No se pudo precargar la mesa", e);
+    }
+  }
+  window.cargarMesaOperador = cargarMesa;
+
+  // ===== Init =====
+  document.addEventListener("DOMContentLoaded", () => {
+    neutralizeToastsAndGlobals();
+
+    // Evita validaciones viejas atadas al form
+    const form = document.querySelector("form#formCarga") || document.querySelector("form[data-role='telegrama']");
+    if (form) {
+      suppressForeignHandlers(form, ["submit"]);
+      form.addEventListener("submit", (e) => { e.preventDefault(); guardarMesa(); }, true);
+    }
+
+    // Cablear inputs de votos (listas + especiales)
+    const baseInputs = $$(".voto_input, .voto_especial_input");
+    wireNumericInputs(baseInputs);
+
+    // Desbloquear/neutralizar campos de totales para que NO se calculen solos
+    unlockManualTotals();
+
+    // Botón Guardar/Enviar
+    $("#btnGuardar")?.addEventListener("click", (ev) => { ev.preventDefault(); guardarMesa(); });
+    $("#btnEnviar") ?.addEventListener("click", (ev) => { ev.preventDefault(); guardarMesa(); });
+
+    // Cambio de mesa (si hay selector)
+    $("#selectMesa")?.addEventListener("change", (ev) => {
+      const mesaId = ev.target.value;
+      $("#mesaId") && ($("#mesaId").value = mesaId);
+      cargarMesa(mesaId);
+    });
+
+    // Precargar si hay mesaId en el DOM
+    const startMesaId =
+      $("#mesaId")?.value ||
+      document.body.getAttribute("data-mesa-id") ||
+      $("#selectMesa")?.value ||
+      null;
+    if (startMesaId) cargarMesa(startMesaId);
+
+    // Asegurar 3 dígitos visibles
+    padInputs3();
+  });
+})();

@@ -730,3 +730,22 @@ window.addEventListener('pagehide', () => {
   try { sessionStorage.clear(); } catch(e){}
 });
 
+// === Resalta SOLO "ALIANZA FUERZA PATRIA" (mismo estilo que lista excepto este) ===
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("#tabla_votos td.col-agrupa, .card-header .nombre").forEach(el => {
+    const nombre = el.textContent.replace(/\s+/g, " ").trim().toUpperCase();
+
+    // base: todos igual que el nro de lista
+    el.style.fontWeight = "700";
+    el.style.color = "#000";
+
+    // excepción: Fuerza Patria
+    if (nombre === "ALIANZA FUERZA PATRIA") {
+      el.style.fontWeight = "900";
+      el.style.color = "#000";
+      // opcional: el mismo gris que el número de lista
+      el.style.backgroundColor = "#f2f3f5";
+      el.style.borderRadius = "4px";
+    }
+  });
+});

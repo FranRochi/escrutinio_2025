@@ -10,19 +10,15 @@
 
 {% block main %}
 <div class="secciones-panel">
-  
+
   <!-- Columna izquierda -->
   <section class="secciones-lista">
     <h3 class="panel-titulo">Avance por Sección</h3>
     <ul id="seccionList" class="secciones-items"></ul>
   </section>
 
-  <!-- Columna derecha (detalle dinámico) -->
+  <!-- Columna derecha (detalle solo Diputados Nacionales) -->
   <section id="seccionDetalle" class="secciones-detalle" style="display:none;">
-    <div class="tabs">
-      <button id="tabConcejales" class="active">Concejales</button>
-      <button id="tabDiputados">Diputados</button>
-    </div>
     <div class="detalle-grafico">
       <canvas id="graficoDetalle"></canvas>
     </div>
@@ -39,5 +35,8 @@
 
 {% block extra_scripts %}
   <script src="{% static 'js/panel_geo.js' %}"></script>
-  <script> initPanel('secciones'); </script>
+  <script>
+    // Cargar solo Diputados Nacionales
+    initPanel("secciones");
+  </script>
 {% endblock %}

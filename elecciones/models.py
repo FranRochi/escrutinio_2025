@@ -131,10 +131,12 @@ class VotoMesaCargo(models.Model):
 
 
 class VotoMesaEspecial(models.Model):
-    # Sugerencia: alinearlo con lo que usa el front/validación
     TIPO_VOTO = [
         ('blanco', 'En blanco'),
         ('impugnado', 'Impugnado'),
+        ('nulo', 'Nulo'),  # ✅ NUEVO
+        ('recurrido', 'Recurrido'),  # ✅ NUEVO
+        ('identidad_impugnada', 'Identidad Impugnada'),  # ✅ NUEVO
     ]
     mesa = models.ForeignKey(Mesa, on_delete=models.CASCADE, related_name="votos_especiales")
     cargo_postulacion = models.ForeignKey(
@@ -144,15 +146,16 @@ class VotoMesaEspecial(models.Model):
         null=True,
         blank=True
     )
-    tipo = models.CharField(max_length=20, choices=TIPO_VOTO)
+    tipo = models.CharField(max_length=25, choices=TIPO_VOTO)
     votos = models.PositiveIntegerField()
 
     class Meta:
         unique_together = ('mesa', 'cargo_postulacion', 'tipo')
-        indexes = [  # NEW
+        indexes = [
             models.Index(fields=['cargo_postulacion']),
             models.Index(fields=['mesa']),
         ]
+
 
 
 class ResumenMesa(models.Model):

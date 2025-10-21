@@ -7,22 +7,7 @@
 {% block main %}
 <div class="table-wrapper circuitos-wrapper">
   <div class="circuitos-panel">
-    <h3 class="panel-titulo">Avance por Circuito</h3>
-    <div class="tabla-scroll-top">
-      <div class="tabla-wrap">
-        <a href="{% url 'export_circuitos_excel' %}" class="btn-export">
-          ⬇ Descargar Excel
-        </a>
-        <table id="tabla_circuitos" class="table-circuitos">
-          <thead id="circuitoHead"></thead>
-          <tbody id="circuitoList"></tbody>
-        </table>
-      </div>
-    </div>
-    <div id="paginationControls" class="pagination"></div>
-  </div>
-  <div class="circuitos-panel">
-  <h3 class="panel-titulo">Avance por Circuito – Diputados Provinciales</h3>
+    <h3 class="panel-titulo">Avance por Circuito – Diputados Nacionales</h3>
     <div class="tabla-scroll-top">
       <div class="tabla-wrap">
         <a href="{% url 'export_circuitos_excel_diputados' %}" class="btn-export">
@@ -37,13 +22,12 @@
     <div id="paginationControlsDip" class="pagination"></div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block extra_scripts %}
   <script src="{% static 'js/panel_geo.js' %}"></script>
   <script>
-    initPanel('circuitos');           // Concejales
-    initPanel('circuitos_diputados'); // Diputados
+    // Solo se carga el panel de Diputados Nacionales
+    initPanel('circuitos_diputados');
   </script>
 {% endblock %}

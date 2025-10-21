@@ -124,6 +124,7 @@ def logout_view(request):
     resp = HttpResponse(html)
     add_never_cache_headers(resp)
     return resp
+
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -144,8 +145,6 @@ def api_login_view(request):
     else:
         return Response({"error": "Credenciales inválidas"}, status=401)
 
-
-# views.py
 @never_cache
 @login_required
 def panel_operador(request):
@@ -154,36 +153,59 @@ def panel_operador(request):
 
     mesas = request.user.mesas_visibles.order_by('numero_mesa')
 
-    partidos = Partido.objects.all()
-    cargos = CargoPostulacion.objects.all().order_by('id')
-
-    partidos_map = []
-    for partido in partidos:
-        candidatura_por_cargo = {}
-        for candidatura in PartidoPostulacion.objects.filter(partido=partido):
-            candidatura_por_cargo[candidatura.cargo_postulacion_id] = candidatura
-        partidos_map.append({
-            'partido': partido,
-            'candidaturas': candidatura_por_cargo
+    # 1) Cargo: Diputados Nacionales (resuelve por nombre exacto; si no, por id=3 como fallback)
+    cargo_dip = (CargoPostulacion.objects
+                 .filter(nombre_postulacion__iexact="Diputados Nacionales")
+                 .first())
+    if not cargo_dip:
+        cargo_dip = CargoPostulacion.objects.filter(id=3).first()
+    if not cargo_dip:
+        return render(request, 'panel_operador/panel_operador.html', {
+            'mesas': mesas,
+            'partidos_map': [],
+            'cargo_dip': None,
+            'tipos_voto_especial': ['blanco','impugnado'],
+            'escuela_nombre': (
+                f"Usuario: {request.user.username}"
+                if request.user.role == 'computos'
+                else getattr(request.user.escuela, "nombre_escuela", None)
+                    or getattr(request.user.subcomando, "nombre_subcomando", "Sin asignar")
+            ),
+            'error_msg': "No se encontró el cargo 'Diputados Nacionales'."
         })
+
+    # 2) Traer partidos ordenados
+    partidos = Partido.objects.all().order_by('orden', 'numero_lista')
+
+    # 3) Traer TODAS las candidaturas del cargo y mapear por partido_id
+    candidaturas = (PartidoPostulacion.objects
+                    .filter(cargo_postulacion=cargo_dip)
+                    .select_related('partido'))
+    cand_por_partido = {pp.partido_id: pp for pp in candidaturas}  # partido_id = numero_lista
+
+    # 4) Armar el map sin N+1 y con candidatura segura
+    partidos_map = [{
+        'partido': p,
+        'candidatura': cand_por_partido.get(p.pk)  # p.pk == p.numero_lista
+    } for p in partidos]
 
     tipos_voto_especial = ['blanco', 'impugnado']
 
     return render(request, 'panel_operador/panel_operador.html', {
         'mesas': mesas,
-        'partidos': partidos,
-        'cargos': cargos,
         'partidos_map': partidos_map,
+        'cargo_dip': cargo_dip,
         'tipos_voto_especial': tipos_voto_especial,
-        # mostrar nombre subcomando si no tiene escuela
-        # 👇 lógica para mostrar distinto según rol
         'escuela_nombre': (
             f"Usuario: {request.user.username}"
             if request.user.role == 'computos'
-            else getattr(request.user.escuela, "nombre_escuela", None) 
+            else getattr(request.user.escuela, "nombre_escuela", None)
                 or getattr(request.user.subcomando, "nombre_subcomando", "Sin asignar")
         ),
+        'debug_pp_count': len(candidaturas),  # opcional para chequear en template
     })
+
+
 # ----------------------------
 # Guardar votos (con validación de tipos especiales)
 # ----------------------------
@@ -388,7 +410,7 @@ def panel_dashboard(request):
         return HttpResponseForbidden("No tenés permiso para acceder a este panel.")
 
     cargos_qs = (CargoPostulacion.objects
-                 .filter(nombre_postulacion__in=['Diputados Provinciales', 'Concejales'])
+                 .filter(nombre_postulacion__in=['Diputados Nacionales'])
                  .order_by('id')
                  .values('id', 'nombre_postulacion'))
     cargos = list(cargos_qs)
@@ -396,8 +418,7 @@ def panel_dashboard(request):
     # fallback por si la DB aún no tiene esos cargos cargados
     if not cargos:
         cargos = [
-            {'id': 0, 'nombre_postulacion': 'Concejales'},
-            {'id': 1, 'nombre_postulacion': 'Diputados Provinciales'},
+            {'id': 1, 'nombre_postulacion': 'Diputados Nacionales'},
         ]
 
     return render(request, 'panel/panel_dashboard.html', {
@@ -416,9 +437,8 @@ def api_summary(request):
     if not cargo and cargo_name:
         alias = cargo_name.upper()
         mapa = {
-            'DIPUTADOS': 'Diputados Provinciales',
-            'DIPUTADOS PROVINCIALES': 'Diputados Provinciales',
-            'CONCEJALES': 'Concejales',
+            'DIPUTADOS': 'Diputados Nacionales',
+            'DIPUTADOS NACIONALES': 'Diputados Nacionales',
         }
         target = mapa.get(alias, cargo_name)
         cargo = CargoPostulacion.objects.filter(nombre_postulacion__iexact=target).first()
@@ -479,17 +499,17 @@ def api_summary_both(request):
         cargo_dip = CargoPostulacion.objects.filter(id=int(dip_id)).first()
     else:
         cargo_dip = CargoPostulacion.objects.filter(
-            nombre_postulacion__iexact='Diputados Provinciales'
+            nombre_postulacion__iexact='Diputados Nacionales'
         ).first()
 
-    if con_id and con_id.isdigit():
-        cargo_con = CargoPostulacion.objects.filter(id=int(con_id)).first()
-    else:
-        cargo_con = CargoPostulacion.objects.filter(
-            nombre_postulacion__iexact='Concejales'
-        ).first()
+    #if con_id and con_id.isdigit():
+    #    cargo_con = CargoPostulacion.objects.filter(id=int(con_id)).first()
+    #else:
+    #    cargo_con = CargoPostulacion.objects.filter(
+    #        nombre_postulacion__iexact='Concejales'
+    #    ).first()
 
-    if not cargo_dip or not cargo_con:
+    if not cargo_dip:
         return JsonResponse({'error': 'No se encontraron los cargos requeridos'}, status=400)
 
     if request.user.is_superuser or request.user.role in ("admin", "panelista"):
@@ -499,7 +519,7 @@ def api_summary_both(request):
 
     qs = (VotoMesaCargo.objects
           .select_related('partido_postulacion__partido')
-          .filter(partido_postulacion__cargo_postulacion__in=[cargo_dip, cargo_con],
+          .filter(partido_postulacion__cargo_postulacion__in=[cargo_dip],
                   mesa__in=mesas_visibles)
           .values('partido_postulacion__partido__pk',
                   'partido_postulacion__partido__nombre_partido',
@@ -547,12 +567,7 @@ def api_summary_both(request):
                 'id': cargo_dip.id,
                 'nombre': cargo_dip.nombre_postulacion,
                 'total_validos': total_dip
-            },
-            'concejales': {
-                'id': cargo_con.id,
-                'nombre': cargo_con.nombre_postulacion,
-                'total_validos': total_con
-            },
+            },            
         },
         'rows': filas,
         'mesas_escrutadas': mesas_escrutadas,
@@ -742,82 +757,15 @@ from elecciones.models import CargoPostulacion, VotoMesaCargo, Circuito
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 
-@login_required
-def api_circuitos(request):
-    cargo_con = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
-
-    if not cargo_con:
-        return JsonResponse({"error": "Cargo 'Concejales' no encontrado"}, status=400)
-
-    rows = (Circuito.objects
-            .annotate(
-                total=Count('escuelas__mesas', distinct=True),
-                escrutadas=Count('escuelas__mesas',
-                                 filter=Q(escuelas__mesas__escrutada=True),
-                                 distinct=True)
-            ))
-
-    items = []
-    for r in rows:
-        total = r.total or 0
-        esc   = r.escrutadas or 0
-        pct   = round(esc * 100 / total, 2) if total else 0.0
-
-        # 🔹 Subcomandos asociados al circuito
-        subcomandos = (r.escuelas
-                         .values_list("subcomando__nombre_subcomando", flat=True)
-                         .distinct())
-        subcomandos = [s for s in subcomandos if s] or ["Sin asignar"]
-
-        votos_qs = (
-            VotoMesaCargo.objects
-            .filter(
-                mesa__escuela__circuito=r,
-                partido_postulacion__cargo_postulacion=cargo_con
-            )
-            .values(
-                "partido_postulacion__partido__nombre_partido",
-                "partido_postulacion__partido__sigla"
-            )
-            .annotate(votos=Sum("votos"))
-            .order_by("-votos")
-        )
-
-        total_votos = sum(v["votos"] or 0 for v in votos_qs)
-
-        partidos = []
-        for v in votos_qs:
-            votos = v["votos"] or 0
-            ppct = (votos * 100 / total_votos) if total_votos else 0
-            partidos.append({
-                "sigla": v["partido_postulacion__partido__sigla"],
-                "nombre": v["partido_postulacion__partido__nombre_partido"],
-                "votos": votos,
-                "porcentaje": format(ppct, ".2f")
-            })
-
-        items.append({
-            "nombre": r.codigo_circuito,
-            "subcomandos": list(subcomandos),  # 👈 agregado
-            "escrutadas": esc,
-            "total": total,
-            "porcentaje": pct,
-            "partidos": partidos,
-        })
-
-    items.sort(key=lambda x: x["nombre"])
-    return JsonResponse({"items": items})
 
 @login_required
 def api_circuitos_diputados(request):
     cargo_dip = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
 
     if not cargo_dip:
-        return JsonResponse({"error": "Cargo 'Diputados Provinciales' no encontrado"}, status=400)
+        return JsonResponse({"error": "Cargo 'Diputados Nacionales' no encontrado"}, status=400)
 
     rows = (Circuito.objects
             .annotate(
@@ -892,14 +840,11 @@ def api_seccion_detalle(request, nombre):
         return JsonResponse({"error": f"Sección {nombre} no encontrada"}, status=404)
 
     # Traemos cargos
-    cargo_con = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
     cargo_dip = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
 
-    if not cargo_con or not cargo_dip:
+    if not cargo_dip:
         return JsonResponse({"error": "Cargos no encontrados"}, status=400)
 
     # === VOTOS POR PARTIDO EN ESA SECCIÓN (agrupados) ===
@@ -907,7 +852,7 @@ def api_seccion_detalle(request, nombre):
         VotoMesaCargo.objects
         .filter(
             mesa__escuela__circuito__seccion=seccion,
-            partido_postulacion__cargo_postulacion__in=[cargo_con, cargo_dip]
+            partido_postulacion__cargo_postulacion__in=[cargo_dip]
         )
         .values(
             "partido_postulacion__partido__pk",
@@ -928,13 +873,11 @@ def api_seccion_detalle(request, nombre):
             "concejales": 0,
             "diputados": 0,
         })
-        if cargo_id == cargo_con.id:
-            item["concejales"] = r["votos"] or 0
-        elif cargo_id == cargo_dip.id:
+        if cargo_id == cargo_dip.id:
             item["diputados"] = r["votos"] or 0
 
     filas = list(por_partido.values())
-    filas.sort(key=lambda x: (x["concejales"] + x["diputados"]), reverse=True)
+    filas.sort(key=lambda x: (x["diputados"]), reverse=True)
 
     # === CIRCUITOS DE ESA SECCIÓN ===
     circuitos_qs = (
@@ -966,9 +909,6 @@ def api_seccion_detalle(request, nombre):
         "filas": filas,        # 👈 Listas con concejales y diputados
         "circuitos": circuitos # Avance por circuito
     })
-
-
-# elecciones/views.py
 
 from .models import User
 from datetime import timedelta
@@ -1147,135 +1087,13 @@ import openpyxl
 from openpyxl.styles import Font, Alignment
 
 @login_required
-def export_circuitos_excel(request):
-    cargo_con = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
-
-    if not cargo_con:
-        return HttpResponse("Cargo 'Concejales' no encontrado", status=400)
-
-    rows = (Circuito.objects
-            .annotate(
-                total=Count('escuelas__mesas', distinct=True),
-                escrutadas=Count('escuelas__mesas',
-                                 filter=Q(escuelas__mesas__escrutada=True),
-                                 distinct=True)
-            ))
-
-    # Para ordenar las siglas de partidos según total provincial
-    totales = {}
-    for r in rows:
-        votos_qs = (
-            VotoMesaCargo.objects
-            .filter(
-                mesa__escuela__circuito=r,
-                partido_postulacion__cargo_postulacion=cargo_con
-            )
-            .values(
-                "partido_postulacion__partido__sigla",
-                "partido_postulacion__partido__nombre_partido"
-            )
-            .annotate(votos=Sum("votos"))
-        )
-        for v in votos_qs:
-            totales[v["partido_postulacion__partido__sigla"]] = \
-                totales.get(v["partido_postulacion__partido__sigla"], 0) + (v["votos"] or 0)
-
-    orden_partidos = sorted(totales.items(), key=lambda x: x[1], reverse=True)
-    orden_siglas = [sigla for sigla, _ in orden_partidos]
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Circuitos"
-
-    # 👉 Encabezado (agregamos 2 columnas al final)
-    headers = ["Subcomando", "Circuito"]
-    for sigla in orden_siglas:
-        headers.append(f"{sigla} Votos")
-        headers.append(f"{sigla} %")
-    headers.extend(["Total votos Blanco", "Total votos impugnados"])  # <-- NUEVO
-    ws.append(headers)
-
-    for col in range(1, len(headers) + 1):
-        ws.cell(row=1, column=col).font = Font(bold=True)
-        ws.cell(row=1, column=col).alignment = Alignment(horizontal="center")
-
-    # Filas
-    for r in rows:
-        total = r.total or 0
-        esc   = r.escrutadas or 0
-        pct   = round(esc * 100 / total, 2) if total else 0.0
-        circuito_label = f"{r.codigo_circuito} {esc}/{total} ({pct}%)"
-
-        subcomandos = (r.escuelas
-                         .values_list("subcomando__nombre_subcomando", flat=True)
-                         .distinct())
-        sub_label = ", ".join([s for s in subcomandos if s]) or "Sin asignar"
-
-        votos_qs = (
-            VotoMesaCargo.objects
-            .filter(
-                mesa__escuela__circuito=r,
-                partido_postulacion__cargo_postulacion=cargo_con
-            )
-            .values(
-                "partido_postulacion__partido__sigla",
-                "partido_postulacion__partido__nombre_partido"
-            )
-            .annotate(votos=Sum("votos"))
-        )
-        total_votos = sum(v["votos"] or 0 for v in votos_qs)
-        map_partidos = {v["partido_postulacion__partido__sigla"]: v for v in votos_qs}
-
-        # 👉 Blancos / Impugnados del circuito y cargo
-        blancos = (
-            VotoMesaEspecial.objects
-            .filter(
-                mesa__escuela__circuito=r,
-                cargo_postulacion=cargo_con,
-                tipo__in=["blanco", "blancos", "en_blanco"]
-            )
-            .aggregate(total=Sum("votos"))["total"] or 0
-        )
-        impugnados = (
-            VotoMesaEspecial.objects
-            .filter(
-                mesa__escuela__circuito=r,
-                cargo_postulacion=cargo_con,
-                tipo__in=["impugnado", "impugnados"]
-            )
-            .aggregate(total=Sum("votos"))["total"] or 0
-        )
-
-        row = [sub_label, circuito_label]
-        for sigla in orden_siglas:
-            v = map_partidos.get(sigla)
-            votos = v["votos"] if v else 0
-            ppct = (votos * 100 / total_votos) if total_votos else 0
-            row.extend([votos, format(ppct, ".2f")])
-
-        # 👉 columnas nuevas al final
-        row.extend([blancos, impugnados])
-        ws.append(row)
-
-    response = HttpResponse(
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    fecha = now().strftime("%Y%m%d_%H%M")
-    response["Content-Disposition"] = f'attachment; filename="circuitos_LaPlata_{fecha}.xlsx"'
-    wb.save(response)
-    return response
-
-
-@login_required
 def export_circuitos_excel_diputados(request):
     cargo_dip = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
 
     if not cargo_dip:
-        return HttpResponse("Cargo 'Diputados Provinciales' no encontrado", status=400)
+        return HttpResponse("Cargo 'Diputados Nacionales' no encontrado", status=400)
 
     rows = (Circuito.objects
             .annotate(
@@ -1390,14 +1208,11 @@ def export_circuitos_excel_diputados(request):
 
 @login_required
 def export_subcomandos_excel(request):
-    cargo_con = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
     cargo_dip = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
 
-    if not cargo_con or not cargo_dip:
+    if not cargo_dip:
         return HttpResponse("Cargos no encontrados", status=400)
 
     def build_sheet(ws, cargo):
@@ -1494,11 +1309,8 @@ def export_subcomandos_excel(request):
     # === Crear workbook con dos hojas ===
     wb = openpyxl.Workbook()
     ws1 = wb.active
-    ws1.title = "Concejales"
-    build_sheet(ws1, cargo_con)
-
-    ws2 = wb.create_sheet(title="Diputados")
-    build_sheet(ws2, cargo_dip)
+    ws1.title = "Diputados Nacionales"
+    build_sheet(ws1, cargo_dip)
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -1527,21 +1339,18 @@ def api_subcomando_detalle(request, nombre):
         return JsonResponse({"error": f"Subcomando {nombre} no encontrado"}, status=404)
 
     # Traemos cargos
-    cargo_con = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
     cargo_dip = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
 
-    if not cargo_con or not cargo_dip:
+    if not cargo_dip:
         return JsonResponse({"error": "Cargos no encontrados"}, status=400)
 
     # Votos agrupados por partido y cargo
     votos_qs = (
         VotoMesaCargo.objects
         .filter(mesa__escuela__subcomando=subcomando,
-                partido_postulacion__cargo_postulacion__in=[cargo_con, cargo_dip])
+                partido_postulacion__cargo_postulacion__in=[cargo_dip])
         .values("partido_postulacion__partido__pk",
                 "partido_postulacion__partido__nombre_partido",
                 "partido_postulacion__cargo_postulacion__id")
@@ -1559,13 +1368,11 @@ def api_subcomando_detalle(request, nombre):
             "concejales": 0,
             "diputados": 0,
         })
-        if cargo_id == cargo_con.id:
-            item["concejales"] = r["votos"] or 0
-        elif cargo_id == cargo_dip.id:
+        if cargo_id == cargo_dip.id:
             item["diputados"] = r["votos"] or 0
 
     filas = list(por_partido.values())
-    filas.sort(key=lambda x: (x["concejales"] + x["diputados"]), reverse=True)
+    filas.sort(key=lambda x: (x["diputados"]), reverse=True)
 
     # Escuelas (como ya tenías)
     escuelas_qs = (
@@ -1592,72 +1399,13 @@ def api_subcomando_detalle(request, nombre):
         "escuelas": escuelas,
     })
 
-
-@login_required
-def api_subcomandos_concejales(request):
-    cargo = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
-    if not cargo:
-        return JsonResponse({"error": "Cargo 'Concejales' no encontrado"}, status=400)
-
-    rows = (Subcomando.objects
-            .annotate(
-                total=Count('escuelas__mesas', distinct=True),
-                escrutadas=Count('escuelas__mesas',
-                                 filter=Q(escuelas__mesas__escrutada=True),
-                                 distinct=True)
-            ))
-
-    items = []
-    for sub in rows:
-        total = sub.total or 0
-        esc   = sub.escrutadas or 0
-        pct   = round(esc * 100 / total, 2) if total else 0.0
-
-        votos_qs = (
-            VotoMesaCargo.objects
-            .filter(
-                mesa__escuela__subcomando=sub,
-                partido_postulacion__cargo_postulacion=cargo
-            )
-            .values("partido_postulacion__partido__sigla",
-                    "partido_postulacion__partido__nombre_partido")
-            .annotate(votos=Sum("votos"))
-            .order_by("-votos")
-        )
-
-        total_votos = sum(v["votos"] or 0 for v in votos_qs)
-        partidos = []
-        for v in votos_qs:
-            votos = v["votos"] or 0
-            ppct = (votos * 100 / total_votos) if total_votos else 0
-            partidos.append({
-                "sigla": v["partido_postulacion__partido__sigla"],
-                "nombre": v["partido_postulacion__partido__nombre_partido"],
-                "votos": votos,
-                "porcentaje": format(ppct, ".2f")
-            })
-
-        items.append({
-            "nombre": sub.nombre_subcomando,
-            "escrutadas": esc,
-            "total": total,
-            "porcentaje": pct,
-            "partidos": partidos,
-        })
-
-    items.sort(key=lambda x: x["nombre"])
-    return JsonResponse({"items": items})
-
-
 @login_required
 def api_subcomandos_diputados(request):
     cargo = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
     if not cargo:
-        return JsonResponse({"error": "Cargo 'Diputados Provinciales' no encontrado"}, status=400)
+        return JsonResponse({"error": "Cargo 'Diputados Nacionales' no encontrado"}, status=400)
 
     rows = (Subcomando.objects
             .annotate(
@@ -1705,7 +1453,29 @@ def api_subcomandos_diputados(request):
             "partidos": partidos,
         })
 
-    items.sort(key=lambda x: x["nombre"])
+    # --- ORDEN MANUAL ---
+    CUSTOM_ORDER = [
+        # fila 1
+        "Seccion 1ra", "Villa Elvira", "Melchor Romero", "Gonnet",
+        # fila 2
+        "Seccion 2da", "Sicardi-Garibaldi-Arana-Correa", "San Carlos", "Villa Castells",
+        # fila 3
+        "Seccion 3ra", "Altos de San Lorenzo", "Tolosa", "City Bell",
+        # fila 4
+        "Seccion 9na",  "Los Hornos","Ringuelet", "Villa Elisa",
+        # fila 5
+        "495", "Etcheverry", "Hernandez", "Arturo Segui",
+        # fila 6
+        "501", "Lisandro Olmos", "Gorina", "El Peligro",
+        # fila 7
+        "Isla Martin Garcia", "Abasto", 
+    ]
+    # Crear mapa normalizado
+    orden_map = {name.lower().strip(): idx for idx, name in enumerate(CUSTOM_ORDER)}
+
+    # Ordenar usando la versión normalizada
+    items.sort(key=lambda x: orden_map.get(x['nombre'].lower().strip(), 999))
+
     return JsonResponse({"items": items})
 
 # ---------------------------#
@@ -1853,26 +1623,19 @@ def export_mesas_por_cargo_excel(request):
     """
     Genera un .xlsx con dos solapas:
       - 'Diputados'
-      - 'Concejales'
     Columnas: Subcomando | Escuela | Mesa | Total | [siglas de listas] | Blancos | Impugnados
     """
-    cargo_con = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Concejales"
-    ).first()
     cargo_dip = CargoPostulacion.objects.filter(
-        nombre_postulacion__iexact="Diputados Provinciales"
+        nombre_postulacion__iexact="Diputados Nacionales"
     ).first()
 
-    if not cargo_con or not cargo_dip:
+    if not cargo_dip:
         return HttpResponse("Cargos no encontrados", status=400)
 
     wb = openpyxl.Workbook()
     ws_con = wb.active
-    ws_con.title = "Concejales"
-    _build_sheet_mesas(ws_con, cargo_con)
-
-    ws_dip = wb.create_sheet(title="Diputados")
-    _build_sheet_mesas(ws_dip, cargo_dip)
+    ws_con.title = "Diputados Nacionales"
+    _build_sheet_mesas(ws_con, cargo_dip)
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

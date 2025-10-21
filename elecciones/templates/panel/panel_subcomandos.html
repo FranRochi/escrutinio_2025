@@ -19,12 +19,8 @@
       <ul id="subcomandoList" class="secciones-items"></ul>
     </section>
 
-    <!-- Columna derecha (detalle dinámico) -->
+    <!-- Columna derecha (detalle dinámico solo Diputados) -->
     <section id="subcomandoDetalle" class="secciones-detalle" style="display:none;">
-      <div class="tabs">
-        <button id="tabConcejales" class="tab-btn active">Concejales</button>
-        <button id="tabDiputados" class="tab-btn">Diputados</button>
-      </div>
       <div class="detalle-grafico">
         <canvas id="graficoDetalle"></canvas>
       </div>
@@ -37,43 +33,30 @@
     </section>
   </div>
 
-  <!-- Bloque de resultados siempre debajo -->
+  <!-- Bloque de resultados -->
   <div class="subcomandos-tablas">
     <div class="card card-tables">
       <div class="card-head">
         <h3>Resultados por Subcomando</h3>
         <a href="{% url 'export_subcomandos_excel' %}" class="btn-export">Descargar Excel</a>
       </div>
-
-        <h4>Concejales</h4>
-        <div class="tabla-scroll-top">
+      <div class="tabla-scroll-top">
         <table class="table table-sm">
-            <thead id="subcomandoHeadCon"></thead>
-            <tbody id="subcomandoListCon"></tbody>
+          <thead id="subcomandoHeadDip"></thead>
+          <tbody id="subcomandoListDip"></tbody>
         </table>
-        </div>
-        <div id="paginationControlsSubCon" class="pagination"></div>
-
-        <h4>Diputados</h4>
-        <div class="tabla-scroll-top">
-        <table class="table table-sm">
-            <thead id="subcomandoHeadDip"></thead>
-            <tbody id="subcomandoListDip"></tbody>
-        </table>
-        </div>
-        <div id="paginationControlsSubDip" class="pagination"></div>
+      </div>
+      <div id="paginationControlsSubDip" class="pagination"></div>
     </div>
   </div>
 
 </div>
-
 {% endblock %}
 
 {% block extra_scripts %}
   <script src="{% static 'js/panel_geo.js' %}"></script>
-  <script> 
-    initPanel('subcomandos'); 
-    initPanel("subcomandos_concejales"); // tabla concejales
-    initPanel("subcomandos_diputados");  // tabla diputados
+  <script>
+    // Solo cargamos la vista de subcomandos de Diputados
+    initPanel("subcomandos_diputados");
   </script>
 {% endblock %}

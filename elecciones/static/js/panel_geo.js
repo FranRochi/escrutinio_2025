@@ -90,20 +90,47 @@ function initPanel(tipo) {
   }
 
   function renderAvance(list) {
-    const el = document.getElementById(targetId);
-    if (!el) return;
-    el.innerHTML = "";
+    // === LISTA LATERAL (Avance por Sección o Subcomando) ===
+    const listaEl =
+      tipo === "secciones"
+        ? document.getElementById("seccionList")
+        : document.getElementById("subcomandoList");
 
-    if (
-      tipo === "circuitos" ||
-      tipo === "circuitos_diputados" ||
-      tipo === "subcomandos_concejales" ||
-      tipo === "subcomandos_diputados" ||
-      tipo === "subcomandos_extranjeros_concejales" ||
-      tipo === "subcomandos_extranjeros_diputados"
-    ) {
-      const head = document.getElementById(headId);
+    if (listaEl) {
+      listaEl.innerHTML = "";
+      list.forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "seccion-item";
+        li.innerHTML = `
+          <div class="seccion-row">
+            <span class="seccion-name">${item.nombre}</span>
+            <span class="seccion-val">${item.escrutadas}/${item.total}</span>
+          </div>
+          <div class="seccion-bar">
+            <div class="seccion-fill" style="--pct:${item.porcentaje}%"></div>
+            <span class="seccion-pct">${Number(item.porcentaje).toFixed(1)}%</span>
+          </div>
+        `;
+        if (tipo === "secciones") {
+          li.addEventListener("click", () => loadDetalle(item.nombre));
+        } else if (tipo.includes("subcomandos")) {
+          li.addEventListener("click", () => loadDetalleSubcomando(item.nombre));
+        }
+        listaEl.appendChild(li);
+      });
+    }
 
+    // === TABLAS DE RESULTADOS (solo Diputados Nacionales: Circuitos y Subcomandos) ===
+    if (tipo === "circuitos_diputados" || tipo === "subcomandos_diputados") {
+      const tbody = document.getElementById(
+        tipo === "circuitos_diputados" ? "circuitoListDip" : "subcomandoListDip"
+      );
+      const head = document.getElementById(
+        tipo === "circuitos_diputados" ? "circuitoHeadDip" : "subcomandoHeadDip"
+      );
+      if (!tbody || !head) return;
+
+      // Calcular orden global de partidos
       if (list.length > 0) {
         const totales = {};
         list.forEach((row) => {
@@ -125,10 +152,13 @@ function initPanel(tipo) {
           .sort((a, b) => b.votos - a.votos);
       }
 
+      // Encabezado
       if (list.length > 0 && globalOrder.length > 0) {
         head.innerHTML = `
           <tr class="thead-group">
-            <th class="th-left">${tipo.includes("subcomandos") ? "SUBCOMANDO" : "CIRCUITO"}</th>
+            <th class="th-left">${
+              tipo === "subcomandos_diputados" ? "SUBCOMANDO" : "CIRCUITO"
+            }</th>
             ${globalOrder
               .map(
                 (p) =>
@@ -144,9 +174,11 @@ function initPanel(tipo) {
       }
 
       const paginated = paginate(list, currentPage);
+      tbody.innerHTML = "";
+
       paginated.forEach((item) => {
         const tr = document.createElement("tr");
-        const label = `${item.nombre} ${item.escrutadas || 0}/${item.total || 0} (${Number(item.porcentaje).toFixed(1) || 0}%)`;
+        const label = `${item.nombre} ${item.escrutadas || 0}/${item.total || 0} (${Number(item.porcentaje).toFixed(1)}%)`;
 
         const mapPartidos = {};
         item.partidos.forEach((p) => {
@@ -158,17 +190,18 @@ function initPanel(tipo) {
             const p = mapPartidos[ref.sigla] || { votos: 0, porcentaje: 0 };
             return `
               <td class="num">${p.votos}</td>
-              <td class="pct" style="--pct:${p.porcentaje}%">${Number(p.porcentaje).toFixed(1)}%</td>
+              <td class="pct">${Number(p.porcentaje).toFixed(1)}%</td>
             `;
           })
           .join("");
 
         tr.innerHTML = `<td>${label}</td>${cols}`;
-        el.appendChild(tr);
+        tbody.appendChild(tr);
       });
 
       renderPagination(list.length);
 
+      // Tooltips
       document.querySelectorAll(".sigla").forEach((el) => {
         el.addEventListener("mouseenter", () => {
           const tip = document.createElement("div");
@@ -180,33 +213,12 @@ function initPanel(tipo) {
           tip.style.top = rect.top - 28 + "px";
           el._tooltip = tip;
         });
-        el.addEventListener("mouseleave", () => {
-          el._tooltip?.remove();
-        });
-      });
-    } else if (tipo === "secciones" || tipo === "subcomandos") {
-      list.forEach((item) => {
-        const li = document.createElement("li");
-        li.className = "seccion-item";
-        li.innerHTML = `
-          <div class="seccion-row">
-            <span class="seccion-name">${item.nombre}</span>
-            <span class="seccion-val">${item.escrutadas}/${item.total}</span>
-          </div>
-          <div class="seccion-bar">
-            <div class="seccion-fill" style="--pct:${item.porcentaje}%"></div>
-            <span class="seccion-pct">${Number(item.porcentaje).toFixed(1)}%</span>
-          </div>
-        `;
-        if (tipo === "subcomandos") {
-          li.addEventListener("click", () => loadDetalleSubcomando(item.nombre));
-        } else {
-          li.addEventListener("click", () => loadDetalle(item.nombre));
-        }
-        el.appendChild(li);
+        el.addEventListener("mouseleave", () => el._tooltip?.remove());
       });
     }
+
   }
+
 
   // === Helpers gráfico con solapas ===
   let chart = null;
@@ -253,33 +265,28 @@ function initPanel(tipo) {
   async function loadDetalle(seccionNombre) {
     try {
       const detalle = await getJSON(`/api/panel/seccion/${seccionNombre}/`);
-      const tabCon = document.getElementById("tabConcejales");
-      const tabDip = document.getElementById("tabDiputados");
 
-      function renderByCargo(cargo) {
-        const labels = detalle.filas.map(p => p.partido);
-        const data = detalle.filas.map(p => cargo === "con" ? p.concejales : p.diputados);
-        renderChart(labels, data, cargo === "con" ? "Concejales" : "Diputados");
-      }
+      // --- Gráfico de Diputados ---
+      const labels = detalle.filas.map(p => p.partido);
+      const data = detalle.filas.map(p => p.diputados);
+      renderChart(labels, data, "Diputados Nacionales");
 
-      tabCon.onclick = () => { tabCon.classList.add("active"); tabDip.classList.remove("active"); renderByCargo("con"); };
-      tabDip.onclick = () => { tabDip.classList.add("active"); tabCon.classList.remove("active"); renderByCargo("dip"); };
-
-      tabCon.click(); // default
-
+      // --- Marcar activa la sección seleccionada ---
       document.querySelectorAll(".seccion-item").forEach(el => el.classList.remove("active"));
       const selected = Array.from(document.querySelectorAll(".seccion-item"))
         .find(li => li.querySelector(".seccion-name").textContent === seccionNombre);
       if (selected) selected.classList.add("active");
 
+      // --- Listado de partidos y votos ---
       const ul = document.getElementById("detallePartidos");
       ul.innerHTML = "";
       detalle.filas.forEach(p => {
         const li = document.createElement("li");
-        li.innerHTML = `<span>${p.partido}</span> <span>Concejales: ${p.concejales}</span> <span>Diputados: ${p.diputados}</span>`;
+        li.innerHTML = `<span>${p.partido}</span> <span>Votos: ${p.diputados}</span>`;
         ul.appendChild(li);
       });
 
+      // --- Listado de circuitos con avance ---
       const ulc = document.getElementById("detalleCircuitos");
       ulc.innerHTML = "";
       detalle.circuitos.forEach(c => {
@@ -295,36 +302,31 @@ function initPanel(tipo) {
     }
   }
 
+
   async function loadDetalleSubcomando(subNombre) {
     try {
       const detalle = await getJSON(`/api/panel/subcomando/${subNombre}/`);
-      const tabCon = document.getElementById("tabConcejales");
-      const tabDip = document.getElementById("tabDiputados");
+      const labels = detalle.filas.map(p => p.partido);
+      const data = detalle.filas.map(p => p.diputados);
 
-      function renderByCargo(cargo) {
-        const labels = detalle.filas.map(p => p.partido);
-        const data = detalle.filas.map(p => cargo === "con" ? p.concejales : p.diputados);
-        renderChart(labels, data, cargo === "con" ? "Concejales" : "Diputados");
-      }
+      renderChart(labels, data, "Diputados Nacionales");
 
-      tabCon.onclick = () => { tabCon.classList.add("active"); tabDip.classList.remove("active"); renderByCargo("con"); };
-      tabDip.onclick = () => { tabDip.classList.add("active"); tabCon.classList.remove("active"); renderByCargo("dip"); };
-
-      tabCon.click(); // default
-
+      // Marcar activo el subcomando seleccionado
       document.querySelectorAll(".seccion-item").forEach(el => el.classList.remove("active"));
       const selected = Array.from(document.querySelectorAll(".seccion-item"))
         .find(li => li.querySelector(".seccion-name").textContent === subNombre);
       if (selected) selected.classList.add("active");
 
+      // Lista de partidos con votos
       const ul = document.getElementById("detallePartidos");
       ul.innerHTML = "";
       detalle.filas.forEach(p => {
         const li = document.createElement("li");
-        li.innerHTML = `<span>${p.partido}</span> <span>Concejales: ${p.concejales}</span> <span>Diputados: ${p.diputados}</span>`;
+        li.innerHTML = `<span>${p.partido}</span> <span>Diputados: ${p.diputados}</span>`;
         ul.appendChild(li);
       });
 
+      // Lista de escuelas con avance
       const ulc = document.getElementById("detalleEscuelas");
       ulc.innerHTML = "";
       detalle.escuelas.forEach(e => {
@@ -339,6 +341,7 @@ function initPanel(tipo) {
       console.error("Error detalle subcomando:", err);
     }
   }
+
 
   async function refresh() {
     try {
