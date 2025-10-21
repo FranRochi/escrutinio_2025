@@ -1,0 +1,27 @@
+Comandos clonar:
+
+git clone https://github.com/FranRochi/escrutinio_2025.git
+
+ESCRUTINIO:
+
+scp -P 5708 "ulr_urna.jpg" root@IP/:/srv/escrutinio/elecciones/static/img/
+
+scp -P 5708 "ulr_py" root@IP:/srv/escrutinio/elecciones/
+scp -P 5708 "ulr_forms.py" root@IP:/srv/escrutinio/elecciones/
+
+scp -P 5708 "ulr_operador.js" root@IP:/srv/escrutinio/elecciones/static/js/
+
+scp -P 5708 "ulr_views.py" root@IP:/srv/escrutinio/elecciones/
+
+scp -P 5708 "url_dump_SQL" root@IP:/srv/escrutinio/
+
+-----COMANDOS PARA ACTUALIZAR ESCUELAS NATIVOS + EXTRANJEROS:-----
+
+UPDATE mesas 
+SET id_escuela = 86
+WHERE id_escuela = 320;
+
+
+----COMANDO PARA ELIMINAR ESCUELAS REPETIDAS-----
+DELETE FROM escuelas 
+WHERE id_escuela = 320;
